@@ -1,0 +1,6 @@
+{
+  "enabledPlugins": {
+    "ai-env@ai-env-marketplace": true,
+    "startup-business-analyst@claude-code-workflows": true
+  }
+}

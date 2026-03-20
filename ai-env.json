@@ -1,0 +1,47 @@
+{
+  "$schema": ".claude/skills/ai-env/schema.json",
+  "marketplaces": [
+    {
+      "name": "hashicorp",
+      "url": "https://github.com/hashicorp/agent-skills.git"
+    },
+    {
+      "name": "fullstack-dev-skills",
+      "url": "https://github.com/Jeffallan/claude-skills.git"
+    },
+    {
+      "name": "claude-code-workflows",
+      "url": "https://github.com/wshobson/agents.git"
+    },
+    {
+      "name": "voltagent-subagents",
+      "url": "https://github.com/VoltAgent/awesome-claude-code-subagents"
+    },
+    {
+      "name": "ai-env-marketplace",
+      "url": "https://github.com/IgorRogachov9999/ai-env.git"
+    }
+  ],
+  "plugins": [
+    {
+      "name": "ai-env",
+      "marketplace": "ai-env-marketplace",
+      "id": "ai-env",
+      "scope": "project"
+    }
+  ],
+  "skills": [
+    {
+      "name": "response-logger",
+      "source": "local",
+      "installPath": ".claude/skills/response-logger"
+    },
+    {
+      "name": "ba-requirements",
+      "source": "local",
+      "installPath": ".claude/skills/ba-requirements"
+    }
+  ],
+  "mcpServers": [],
+  "agents": []
+}
