@@ -57,3 +57,6 @@ nunit-*.xml
 
 docs/raw
 docs/original/hackathon-overview.md
+.env
+.mcp.json
+ai-env.lock.json
