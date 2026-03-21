@@ -39,43 +39,6 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "frontend" {
   }
 }
 
-# ------------------------------------------------------------------------------
-# Builds artifact bucket — stores CI/CD build artifacts (binaries, zips, etc.)
-# ------------------------------------------------------------------------------
-resource "aws_s3_bucket" "builds" {
-  bucket = "${var.project_name}-${var.environment}-builds"
-
-  tags = {
-    Name = "${var.project_name}-${var.environment}-s3-builds"
-  }
-}
-
-resource "aws_s3_bucket_versioning" "builds" {
-  bucket = aws_s3_bucket.builds.id
-
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
-resource "aws_s3_bucket_public_access_block" "builds" {
-  bucket                  = aws_s3_bucket.builds.id
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
-
-resource "aws_s3_bucket_server_side_encryption_configuration" "builds" {
-  bucket = aws_s3_bucket.builds.id
-
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
-  }
-}
-
 # Origin Access Control — modern replacement for OAI
 resource "aws_cloudfront_origin_access_control" "frontend" {
   name                              = "${var.project_name}-frontend-oac-${var.environment}"

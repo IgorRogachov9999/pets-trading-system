@@ -42,14 +42,25 @@ module "networking" {
 }
 
 # ------------------------------------------------------------------------------
-# ECR — Container registries for Trading API and Lifecycle Lambda
-# ECR is a shared resource — no environment suffix in repo names.
+# ECR — Data sources referencing the shared ECR repositories.
+# ECR is managed by terraform/ecr/ (its own state: pts/ecr/terraform.tfstate).
+# Run terraform/ecr/ BEFORE this configuration in CI/CD pipelines.
 # ------------------------------------------------------------------------------
-module "ecr" {
-  source = "./modules/ecr"
+data "aws_ecr_repository" "trading_api" {
+  name = "${var.project_name}-trading-api"
+}
 
-  project_name = var.project_name
-  environment  = var.environment
+data "aws_ecr_repository" "lifecycle_lambda" {
+  name = "${var.project_name}-lifecycle-lambda"
+}
+
+# ------------------------------------------------------------------------------
+# Builds bucket — Data source referencing the shared builds artifact bucket.
+# Managed by terraform/builds/ (its own state: pts/builds/terraform.tfstate).
+# Run terraform/builds/ BEFORE this configuration in CI/CD pipelines.
+# ------------------------------------------------------------------------------
+data "aws_s3_bucket" "builds" {
+  bucket = "${var.project_name}-builds"
 }
 
 # ------------------------------------------------------------------------------
@@ -124,7 +135,7 @@ module "ecs" {
   public_subnet_ids      = module.networking.public_subnet_ids
   private_app_subnet_ids = module.networking.private_app_subnet_ids
   sg_vpce_id             = module.networking.sg_vpce_id
-  trading_api_image_url  = module.ecr.trading_api_repository_url
+  trading_api_image_url  = data.aws_ecr_repository.trading_api.repository_url
   desired_count          = var.az_count > 1 ? 2 : 1
   ecs_cpu                = var.ecs_cpu
   ecs_memory             = var.ecs_memory
@@ -145,7 +156,7 @@ module "lambda" {
   vpc_cidr_block             = module.networking.vpc_cidr_block
   private_app_subnet_ids     = module.networking.private_app_subnet_ids
   sg_vpce_id                 = module.networking.sg_vpce_id
-  lifecycle_lambda_image_url = module.ecr.lifecycle_lambda_repository_url
+  lifecycle_lambda_image_url = data.aws_ecr_repository.lifecycle_lambda.repository_url
   db_endpoint                = module.rds.db_endpoint
   db_name                    = module.rds.db_name
   log_retention_days         = var.log_retention_days

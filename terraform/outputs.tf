@@ -11,23 +11,23 @@ output "vpc_id" {
 
 output "ecr_trading_api_url" {
   description = "ECR repository URL for the Trading API container image."
-  value       = module.ecr.trading_api_repository_url
+  value       = data.aws_ecr_repository.trading_api.repository_url
 }
 
 output "ecr_lifecycle_lambda_url" {
   description = "ECR repository URL for the Lifecycle Lambda container image."
-  value       = module.ecr.lifecycle_lambda_repository_url
+  value       = data.aws_ecr_repository.lifecycle_lambda.repository_url
 }
 
 # Alias used by initial-setup.yml
 output "trading_api_ecr_url" {
   description = "ECR repository URL for the Trading API container image (CI/CD alias)."
-  value       = module.ecr.trading_api_repository_url
+  value       = data.aws_ecr_repository.trading_api.repository_url
 }
 
 output "lifecycle_lambda_ecr_url" {
   description = "ECR repository URL for the Lifecycle Lambda container image (CI/CD alias)."
-  value       = module.ecr.lifecycle_lambda_repository_url
+  value       = data.aws_ecr_repository.lifecycle_lambda.repository_url
 }
 
 output "cloudfront_domain_name" {
@@ -91,8 +91,8 @@ output "websocket_api_endpoint" {
 }
 
 output "builds_bucket_name" {
-  description = "S3 bucket name for CI/CD build artifact storage."
-  value       = module.s3_cloudfront.builds_bucket_name
+  description = "S3 bucket name for CI/CD build artifact storage (shared across environments)."
+  value       = data.aws_s3_bucket.builds.bucket
 }
 
 output "github_actions_role_arn" {
