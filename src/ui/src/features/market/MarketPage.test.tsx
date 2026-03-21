@@ -53,7 +53,7 @@ describe('MarketPage', () => {
     expect(screen.getByText(/checking api status/i)).toBeInTheDocument()
   })
 
-  it('renders the API message from the health endpoint', async () => {
+  it('renders the API message from the test endpoint', async () => {
     const message = 'Pets Trading System API is running'
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(

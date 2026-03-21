@@ -5,7 +5,7 @@ namespace PetsTrading.TradingApi.Controllers;
 
 /// <summary>
 /// Liveness probe endpoint used by ECS health checks and API Gateway readiness validation.
-/// Returns 200 when the process is up and able to handle requests.
+/// Returns 200 plain-text "Healthy" so ECS can match the expected string without JSON parsing.
 /// </summary>
 [ApiController]
 [Route("api/v1")]
@@ -20,16 +20,14 @@ public sealed class HealthController : ControllerBase
     }
 
     /// <summary>
-    /// Returns a JSON body confirming the API is operational.
+    /// Returns plain-text "Healthy" confirming the process is up and ready to serve requests.
+    /// ECS health checks match against this exact string.
     /// </summary>
-    /// <returns>HTTP 200 with <c>{ "message": "Pets Trading System API is running" }</c>.</returns>
+    /// <returns>HTTP 200 with plain-text body <c>Healthy</c>.</returns>
     [HttpGet("health")]
-    [ProducesResponseType(typeof(HealthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
     public IActionResult GetHealth()
     {
-        return Ok(new HealthResponse(_healthService.GetStatus()));
+        return Content(_healthService.GetStatus(), "text/plain");
     }
-
-    /// <summary>Response body for the health endpoint.</summary>
-    public sealed record HealthResponse(string Message);
 }
