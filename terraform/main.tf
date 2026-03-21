@@ -39,6 +39,7 @@ module "networking" {
   environment  = var.environment
   az_count     = var.az_count
   az_names     = local.az_names
+  all_az_names = data.aws_availability_zones.available.names
 }
 
 # ------------------------------------------------------------------------------
