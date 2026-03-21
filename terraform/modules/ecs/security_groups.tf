@@ -19,11 +19,19 @@ resource "aws_security_group" "ecs" {
   }
 
   egress {
-    description     = "HTTPS to VPC endpoints"
+    description     = "HTTPS to VPC endpoints (preferred path via private DNS)"
     from_port       = 443
     to_port         = 443
     protocol        = "tcp"
     security_groups = [var.sg_vpce_id]
+  }
+
+  egress {
+    description = "HTTPS outbound fallback (ECR/AWS via NAT when VPC endpoint DNS not yet active)"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   tags = {
