@@ -1,6 +1,8 @@
 {
   "enabledPlugins": {
     "ai-env@ai-env-marketplace": true,
-    "startup-business-analyst@claude-code-workflows": true
+    "startup-business-analyst@claude-code-workflows": true,
+    "terraform-code-generation@hashicorp": true,
+    "terraform-module-generation@hashicorp": true
   }
 }

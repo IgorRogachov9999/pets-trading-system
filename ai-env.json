@@ -6,6 +6,10 @@
       "url": "https://github.com/hashicorp/agent-skills.git"
     },
     {
+      "name": "claude-plugins-official",
+      "url": "https://github.com/anthropics/claude-code-plugins.git"
+    },
+    {
       "name": "fullstack-dev-skills",
       "url": "https://github.com/Jeffallan/claude-skills.git"
     },
@@ -28,9 +32,26 @@
       "marketplace": "ai-env-marketplace",
       "id": "ai-env",
       "scope": "project"
+    },
+    {
+      "name": "terraform-code-generation",
+      "marketplace": "hashicorp",
+      "id": "terraform-code-generation",
+      "scope": "project"
+    },
+    {
+      "name": "terraform-module-generation",
+      "marketplace": "hashicorp",
+      "id": "terraform-module-generation",
+      "scope": "project"
     }
   ],
   "skills": [
+    {
+      "name": "team-lead",
+      "source": "local",
+      "installPath": ".claude/skills/team-lead"
+    },
     {
       "name": "response-logger",
       "source": "local",
@@ -64,6 +85,51 @@
       "source": "github",
       "repo": "Jeffallan/claude-skills",
       "installPath": ".claude/skills/architecture-designer"
+    },
+    {
+      "name": "backend-skill",
+      "source": "local",
+      "installPath": ".claude/skills/backend-skill"
+    },
+    {
+      "name": "frontend-skill",
+      "source": "local",
+      "installPath": ".claude/skills/frontend-skill"
+    },
+    {
+      "name": "devops-skill",
+      "source": "local",
+      "installPath": ".claude/skills/devops-skill"
+    },
+    {
+      "name": "terraform-style-guide",
+      "source": "plugin",
+      "plugin": "terraform-code-generation"
+    },
+    {
+      "name": "terraform-test",
+      "source": "plugin",
+      "plugin": "terraform-code-generation"
+    },
+    {
+      "name": "terraform-search-import",
+      "source": "plugin",
+      "plugin": "terraform-code-generation"
+    },
+    {
+      "name": "azure-verified-modules",
+      "source": "plugin",
+      "plugin": "terraform-code-generation"
+    },
+    {
+      "name": "terraform-stacks",
+      "source": "plugin",
+      "plugin": "terraform-module-generation"
+    },
+    {
+      "name": "refactor-module",
+      "source": "plugin",
+      "plugin": "terraform-module-generation"
     }
   ],
   "mcpServers": [
@@ -101,12 +167,38 @@
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_PERSONAL_ACCESS_TOKEN"
       }
+    },
+    {
+      "name": "microsoft-docs",
+      "transport": "http",
+      "url": "https://learn.microsoft.com/api/mcp"
+    },
+    {
+      "name": "aws-terraform",
+      "transport": "docker",
+      "image": "mcp/aws-terraform"
     }
   ],
   "agents": [
     {
       "name": "solution-architect",
       "path": ".claude/agents/solution-architect.md"
+    },
+    {
+      "name": "ui-ux-designer",
+      "path": ".claude/agents/ui-ux-designer.md"
+    },
+    {
+      "name": "senior-dotnet-dev",
+      "path": ".claude/agents/senior-dotnet-dev.md"
+    },
+    {
+      "name": "react-frontend-dev",
+      "path": ".claude/agents/react-frontend-dev.md"
+    },
+    {
+      "name": "senior-devops-engineer",
+      "path": ".claude/agents/senior-devops-engineer.md"
     }
   ]
 }

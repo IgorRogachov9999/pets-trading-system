@@ -98,11 +98,32 @@ All architecture docs are in `docs/architecture/`. Published to Confluence space
 - `docs/architecture/adrs/` — 17 ADRs (ADR-001 through ADR-017)
 - Key ADRs: ADR-013 (SignalR evaluated, rejected), ADR-014 (Orleans evaluated, rejected), ADR-015 (Lifecycle → Lambda), ADR-016 (timestamp-based aging), ADR-017 (hybrid real-time)
 
+## Documentation Layout
+
+- `docs/original/` — raw hackathon brief, requirements, judging matrix
+- `docs/requirements/` — BRD, user story map, BDD scenarios
+- `docs/epics/` — one file per epic (EPIC-000 through EPIC-013)
+- `docs/architecture/` — arc42 docs + `adrs/` folder (17 ADRs)
+
 ## AI Environment
 
 - `ai-env.json` — declarative config for MCP servers, skills, agents. Run `/ai-env` to sync.
-- MCP servers: Atlassian (Confluence + Jira), Zephyr (test management), AWS Documentation, GitHub, Pencil (design)
-- Agent: `solution-architect` (`.claude/agents/solution-architect.md`) — use `@"solution-architect (agent)"` for architecture decisions and documentation updates
+- MCP servers: Atlassian (Confluence + Jira), Zephyr (test management), AWS Documentation, GitHub, Microsoft Docs, AWS Terraform
+- Pencil MCP is available via user-level config (not in `.mcp.json`) for design work
+
+### Specialized Agents
+
+Use the `Agent` tool with the appropriate `subagent_type` to dispatch work:
+
+| Agent | `subagent_type` | Use for |
+|-------|----------------|---------|
+| solution-architect | `"solution-architect"` | Architecture decisions, ADRs, Confluence docs |
+| ui-ux-designer | `"ui-ux-designer"` | UI/UX design specs, Pencil `.pen` files |
+| senior-dotnet-dev | `"senior-dotnet-dev"` | .NET 10 backend, PostgreSQL, Lambda, REST/WebSocket APIs |
+| senior-devops-engineer | `"senior-devops-engineer"` | Terraform, GitHub Actions CI/CD, AWS infrastructure |
+| react-frontend-dev | `"react-frontend-dev"` | React SPA, TanStack Query, WebSocket client, Cognito auth |
+
+The `team-lead` skill orchestrates all five agents for feature-level work (decomposition → Jira tickets → execution → integration verification).
 
 ## Session Logging
 

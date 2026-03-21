@@ -1,0 +1,23 @@
+{
+  "skill_name": "team-lead",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need to implement the Place Bid feature. A trader should be able to place a bid on an active listing. The bid amount must be less than their availableCash, it should lock that cash, and if there's already a bid it should outbid it (releasing the previous bidder's locked cash). The frontend needs a bid button on the market view. Set up everything we need in Jira and let me know the plan before you start.",
+      "expected_output": "The skill should: (1) research existing Jira epics/stories for context, (2) check ADRs for bid business rules, (3) produce a decomposed task tree with backend/frontend/infra tasks, (4) identify that backend must define the API contract before frontend can start, (5) create Jira tickets with dependency links, (6) summarize the plan and ask for confirmation before executing.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Let's implement the Leaderboard view. It should show all traders ranked by portfolio value in real-time. We need both the API endpoint and the React component. Also add a Jira story for this and link it to the existing Market View epic if one exists.",
+      "expected_output": "The skill should: (1) search Jira for existing Market View or Leaderboard epics, (2) create a story with subtasks for backend GET /leaderboard endpoint and frontend Leaderboard component, (3) link the backend task as a blocker for the frontend task, (4) include the portfolio value formula (availableCash + lockedCash + sum(intrinsicValue)) in the backend task description, (5) dispatch senior-dotnet-dev and react-frontend-dev agents (sequentially or with API contract defined first).",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "We have a bug: when a trader places a bid that outbids someone else, the previous bidder's lockedCash is not being released. I need this fixed in the backend and the Jira story should be updated to reflect this.",
+      "expected_output": "The skill should: (1) search Jira for the bid-related story/task to understand context, (2) create a bug ticket linked to the original story, (3) dispatch senior-dotnet-dev to fix the atomic outbid logic, (4) verify the fix aligns with the business rules in CLAUDE.md (only highest bid active, previous bidder's cash released), (5) transition the bug ticket to Done when fixed.",
+      "files": []
+    }
+  ]
+}
