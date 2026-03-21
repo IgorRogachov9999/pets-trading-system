@@ -7,7 +7,7 @@
 # sg-lambda: no inbound, outbound to RDS and VPC endpoints
 resource "aws_security_group" "lambda" {
   name        = "${var.project_name}-${var.environment}-sg-lambda"
-  description = "Lifecycle Lambda — outbound only to RDS and VPC endpoints"
+  description = "Lifecycle Lambda - outbound only to RDS and VPC endpoints"
   vpc_id      = var.vpc_id
 
   egress {

@@ -8,7 +8,7 @@
 # sg-alb: receives HTTPS from internet, forwards to ECS tasks on 8080
 resource "aws_security_group" "alb" {
   name        = "${var.project_name}-${var.environment}-sg-alb"
-  description = "Application Load Balancer — inbound HTTPS, outbound to ECS"
+  description = "Application Load Balancer - inbound HTTPS, outbound to ECS"
   vpc_id      = var.vpc_id
 
   ingress {
@@ -27,7 +27,7 @@ resource "aws_security_group" "alb" {
 # sg-ecs: receives traffic from ALB, connects to RDS and VPC endpoints
 resource "aws_security_group" "ecs" {
   name        = "${var.project_name}-${var.environment}-sg-ecs"
-  description = "ECS Fargate Trading API — inbound from ALB, outbound to RDS and VPC endpoints"
+  description = "ECS Fargate Trading API - inbound from ALB, outbound to RDS and VPC endpoints"
   vpc_id      = var.vpc_id
 
   egress {

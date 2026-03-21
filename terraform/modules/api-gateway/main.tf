@@ -138,7 +138,7 @@ resource "aws_api_gateway_stage" "main" {
 # ------------------------------------------------------------------------------
 resource "aws_wafv2_web_acl" "api" {
   name        = "${var.project_name}-${var.environment}-waf-api"
-  description = "WAF ACL for ${var.project_name} API Gateway (${var.environment})"
+  description = "WAF ACL for ${var.project_name} API Gateway - ${var.environment}"
   scope       = "REGIONAL"
 
   default_action {

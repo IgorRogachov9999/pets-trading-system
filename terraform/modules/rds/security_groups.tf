@@ -7,7 +7,7 @@
 # sg-rds: inbound PostgreSQL from ECS and Lambda only
 resource "aws_security_group" "rds" {
   name        = "${var.project_name}-${var.environment}-sg-rds"
-  description = "RDS PostgreSQL — inbound from ECS and Lambda only"
+  description = "RDS PostgreSQL - inbound from ECS and Lambda only"
   vpc_id      = var.vpc_id
 
   tags = {
