@@ -13,14 +13,17 @@ builder.WebHost.ConfigureKestrel(options =>
 // ── Services ──────────────────────────────────────────────────────────────────
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy =>
+    options.AddPolicy("FrontendPolicy", policy =>
     {
-        // Restricted to CloudFront origin in production via environment configuration.
-        // Kept permissive here; the CloudFront distribution URL is supplied at deploy time.
         policy
-            .AllowAnyOrigin()
+            .WithOrigins(
+                "https://d2681j5g1s1ydv.cloudfront.net", // CloudFront distribution (production)
+                "http://localhost:5173",                  // Vite dev server
+                "http://localhost:3000"                   // Alternative local dev port
+            )
             .AllowAnyMethod()
-            .AllowAnyHeader();
+            .AllowAnyHeader()
+            .AllowCredentials();
     });
 });
 
@@ -40,7 +43,9 @@ builder.Logging.AddJsonConsole(options =>
 // ── Middleware pipeline ────────────────────────────────────────────────────────
 var app = builder.Build();
 
-app.UseCors();
+// CORS must come before authentication and authorization so preflight OPTIONS
+// requests are handled before any auth middleware can reject them.
+app.UseCors("FrontendPolicy");
 app.MapControllers();
 
 app.Run();
