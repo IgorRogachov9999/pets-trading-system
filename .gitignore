@@ -89,3 +89,5 @@ src/ui/.env.local
 src/ui/.env.*.local
 src/ui/coverage/
 src/ui/*.tsbuildinfo
+
+.claude/agent-memory/
