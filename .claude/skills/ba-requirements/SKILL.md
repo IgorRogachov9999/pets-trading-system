@@ -97,29 +97,24 @@ Sections:
 
 ## Phase 4 — Confluence publishing
 
-After saving the three files locally, publish to Confluence via the MCP Confluence server:
-- Create a "Requirements" parent page if it doesn't exist
-- Create child pages for User Story Map, BDD Scenarios, and BRD
-- Report the page URLs to the user
+After saving the three files locally, publish to Confluence using the `atlassian` MCP server (already configured in `.mcp.json`). Use the `mcp__atlassian__confluence_*` tools directly.
 
-If the Confluence MCP server isn't configured, tell the user:
+**Steps:**
 
-> Confluence publishing requires the Confluence MCP server. Add it to `.mcp.json`:
-> ```json
-> {
->   "mcpServers": {
->     "confluence": {
->       "command": "npx",
->       "args": ["-y", "@anthropic-ai/mcp-server-confluence"],
->       "env": {
->         "CONFLUENCE_URL": "https://your-domain.atlassian.net",
->         "CONFLUENCE_API_TOKEN": "your-api-token",
->         "CONFLUENCE_USERNAME": "your-email@example.com"
->       }
->     }
->   }
-> }
-> ```
+1. **Find the right space** — use `mcp__atlassian__confluence_search` to look for an existing "Requirements" or project-related space/page. If the project has a Confluence space, publish there. If nothing obvious exists, ask the user which Confluence space to use (provide the space key).
+
+2. **Create or locate the parent page** — search for a "Requirements" parent page under the target space using `mcp__atlassian__confluence_search`. If it doesn't exist, create it with `mcp__atlassian__confluence_create_page`.
+
+3. **Publish each artefact as a child page** — use `mcp__atlassian__confluence_create_page` to create child pages under the Requirements parent:
+   - User Story Map (content from `docs/requirements/user-story-map.md`)
+   - BDD Scenarios (content from `docs/requirements/bdd-scenarios.md`)
+   - BRD (content from `docs/requirements/brd.md`)
+
+   If a page with the same title already exists, use `mcp__atlassian__confluence_update_page` instead of creating a duplicate.
+
+4. **Report URLs** — after creating/updating, report the Confluence page URLs to the user.
+
+**If the `atlassian` MCP server is unavailable** (tools not responding), tell the user to restart Claude Code so the MCP server can reconnect, then retry.
 
 ---
 

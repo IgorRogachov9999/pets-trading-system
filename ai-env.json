@@ -40,6 +40,30 @@
       "name": "ba-requirements",
       "source": "local",
       "installPath": ".claude/skills/ba-requirements"
+    },
+    {
+      "name": "aws-serverless-eda",
+      "source": "github",
+      "repo": "zxkane/aws-skills",
+      "installPath": ".claude/skills/aws-serverless-eda"
+    },
+    {
+      "name": "microservices-architect",
+      "source": "github",
+      "repo": "Jeffallan/claude-skills",
+      "installPath": ".claude/skills/microservices-architect"
+    },
+    {
+      "name": "monitoring-expert",
+      "source": "github",
+      "repo": "Jeffallan/claude-skills",
+      "installPath": ".claude/skills/monitoring-expert"
+    },
+    {
+      "name": "architecture-designer",
+      "source": "github",
+      "repo": "Jeffallan/claude-skills",
+      "installPath": ".claude/skills/architecture-designer"
     }
   ],
   "mcpServers": [
@@ -64,7 +88,25 @@
         "ZEPHYR_API_TOKEN": "$ZEPHYR_API_TOKEN",
         "JIRA_BASE_URL": "$JIRA_URL"
       }
+    },
+    {
+      "name": "aws-documentation",
+      "transport": "docker",
+      "image": "mcp/aws-documentation"
+    },
+    {
+      "name": "github",
+      "transport": "docker",
+      "image": "ghcr.io/github/github-mcp-server",
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_PERSONAL_ACCESS_TOKEN"
+      }
     }
   ],
-  "agents": []
+  "agents": [
+    {
+      "name": "solution-architect",
+      "path": ".claude/agents/solution-architect.md"
+    }
+  ]
 }

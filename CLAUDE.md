@@ -4,54 +4,105 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Context
 
-Hackathon project: a real-time virtual pet marketplace where 3 human-controlled Traders buy, sell, and bid on pets. Stack is not yet chosen — any SaaS-style architecture deployable to AWS/Azure/GCP is valid.
-
-Scoring rewards: coherent system > feature volume; clear tradeoffs > polish; working deployment > completeness.
+Hackathon project: a real-time virtual pet marketplace where authenticated Traders buy, sell, and bid on pets. Scoring rewards coherent system > feature volume; clear tradeoffs > polish; working deployment > completeness.
 
 ## Domain Model
 
-**Trader** (exactly 3): `availableCash`, `lockedCash` (sum of active bids), `inventory[]`, `notifications[]`.
+**Trader**: `availableCash`, `lockedCash` (sum of active bids), `inventory[]`, `notifications[]`.
 Portfolio value = `availableCash + lockedCash + sum(intrinsicValue of owned pets)`.
 
-**Pet**: Unique instance from a 20-breed read-only dictionary (5 dogs, 5 cats, 5 birds, 5 fish). Tracks `age` (starts 0), `health` (0–100%, starts 100), `desirability`. Supply = 3 per breed, depletes on purchase.
+**Pet**: Unique instance from a 20-breed read-only dictionary (5 dogs, 5 cats, 5 birds, 5 fish). Supply = 3 per breed, depletes on purchase. Full breed dictionary: `docs/original/pets-trading-system-requirements.md`.
 
 **Listing**: One active listing per pet. `askingPrice > 0`. At most one active bid (highest wins).
 
 **Bid**: Amount ≤ bidder's `availableCash`. Locks cash. States: active, accepted, rejected, withdrawn, outbid.
 
-### Intrinsic Value
+### Intrinsic Value Formula
 
 ```
-IntrinsicValue = BasePrice × (Health/100) × (Desirability/10) × (1 - Age/Lifespan)
+IntrinsicValue = BasePrice × (Health/100) × (Desirability/10) × max(0, 1 - Age/Lifespan)
 ```
 
-Updated every minute (configurable). Health and desirability fluctuate ±5% per update. Expired pets (Age ≥ Lifespan) have intrinsicValue = 0 but remain tradeable. Full pet dictionary: `docs/original/pets-trading-system-requirements.md`.
+- **Age** is always derived from `(NOW - created_at)` — never stored as an increment (ADR-016). The `pets.age` column is a cache refreshed each tick.
+- Health and desirability fluctuate ±5% per tick (random variance applied by Lifecycle Lambda).
+- Expired pets (Age ≥ Lifespan) have `intrinsicValue = 0` but remain tradeable.
 
 ## Key Business Rules
 
 - New supply purchases bypass bid/ask — retail price deducted directly.
-- Only the highest bid is active per listing; a new higher bid atomically replaces the previous and releases its locked cash.
+- Only the highest bid is active per listing; a new higher bid atomically replaces the previous and releases locked cash.
 - Traders cannot bid on their own pets.
 - Buyers see only their own bid status, not competing bids.
-- Withdrawing a listing rejects all active bids (releases locked cash) and returns the pet to inventory.
-- Starting cash: ~$600–800 (enough to buy 5–8 pets).
+- Withdrawing a listing rejects all active bids and returns the pet to inventory.
+- Starting cash: $150 per new account (fixed).
 - Sequential actions are sufficient; no distributed locking required.
-- Any valuation change or trade triggers immediate UI refresh.
 
 ## Required Views
 
 1. **Trader Panel** (private): inventory, availableCash, lockedCash, portfolioValue, notifications (bid received/accepted/rejected/withdrawn/outbid with pet, price, counterparty — chronological).
-2. **Market View** (shared): active listings, askingPrice, most recent trade price, new supply count (newest first by default).
+2. **Market View** (shared): active listings, askingPrice, most recent trade price, new supply count (newest first).
 3. **Analysis / Drill-Down**: per-pet age, health, desirability, intrinsicValue, expired status.
-4. **Leaderboard**: all 3 traders' portfolioValues, real-time.
+4. **Leaderboard**: all registered traders' portfolioValues, real-time.
 
-## Architecture
+## Decided Architecture (AWS)
 
-- Service-oriented: separate frontend, backend API, infrastructure.
-- Backend runs a lifecycle tick loop (age/health/desirability update every minute).
-- Infrastructure as Code preferred (Terraform or cloud-native).
-- Test cases in markdown files.
-- CI/CD pipeline required (GitHub Actions, GitLab CI, or Azure DevOps).
+### Technology Stack
+
+| Layer | Technology | Notes |
+|---|---|---|
+| Backend | .NET 10 LTS, ASP.NET Core, Dapper | ADR-001 |
+| Frontend | React, TypeScript, Vite | Hosted on S3 + CloudFront |
+| Database | RDS PostgreSQL 16, Multi-AZ | Single shared DB; ACID for financial ops (ADR-003) |
+| Trading API | ECS Fargate (.NET 10 container image via ECR) | ADR-002 |
+| Lifecycle Engine | AWS Lambda + EventBridge Scheduler (rate: 1 min) | .NET 10 container image; replaces ECS singleton (ADR-015) |
+| Authentication | Amazon Cognito | JWT tokens; Trading API proxies auth calls (ADR-006) |
+| API layer | API Gateway (REST + WebSocket) | WAF, throttling, Cognito authorizer (ADR-005) |
+| Real-time | Hybrid: REST polling (5s) + WebSocket notifications only | WebSocket carries 6 trade event types only (ADR-017) |
+| Infrastructure | Terraform | ADR-009 |
+| CI/CD | GitHub Actions | ADR-010 |
+| Observability | CloudWatch + X-Ray | ADR-011 |
+| Secrets | AWS Secrets Manager | IAM passwordless auth to all AWS services |
+| Containers | ECR | All services use container image deployment |
+
+### Service Boundaries
+
+**Trading API Service** (ECS Fargate): All business logic — supply purchases, listings, bids, trade execution, portfolio, leaderboard, notifications. Also pushes WebSocket trade notifications directly to connected clients via API Gateway Management API (no intermediate Lambda).
+
+**Lifecycle Lambda** (EventBridge Scheduler, every 60s): Reads all pets from PostgreSQL, applies ±5% health/desirability variance, derives age from `created_at`, recalculates `intrinsic_value`, updates `pets.age` cache and `is_expired`, writes back. No event publishing after tick — UI updates via frontend polling.
+
+**React SPA** (S3 + CloudFront): Polls REST API every 5 seconds for market/leaderboard/portfolio data. WebSocket connection receives trade notifications only, which trigger immediate `queryClient.invalidateQueries()` for affected views.
+
+### WebSocket Notification Events (6 types)
+
+All pushed directly by the Trading API after trade commits. Connection tracking (traderId → connectionId) is in DynamoDB with TTL.
+
+- `bid.received` → listing owner
+- `bid.accepted` / `bid.rejected` → bidder
+- `outbid` → previous bidder
+- `trade.completed` → buyer + seller
+- `listing.withdrawn` → active bidder (if any)
+
+### Network Topology
+
+VPC `10.0.0.0/16` across 2 AZs. Uniform `/24` subnets: public (ALB, NAT GW), private-app (ECS), private-db (RDS). 7 VPC endpoints (ECR, S3, Secrets Manager, CloudWatch, X-Ray, Execute API). CloudFront → S3 for frontend. WAF on API Gateway. See ADR-012.
+
+### Database Schema (key tables)
+
+`traders`, `pets`, `pet_dictionary` (read-only, 20 breeds), `listings`, `bids`, `trades`, `notifications`, `supply_inventory`. Full schema in `docs/architecture/05-building-block-view.md`.
+
+## Architecture Documentation
+
+All architecture docs are in `docs/architecture/`. Published to Confluence space `pettrading`.
+
+- `docs/architecture/00-overview.md` — document index
+- `docs/architecture/adrs/` — 17 ADRs (ADR-001 through ADR-017)
+- Key ADRs: ADR-013 (SignalR evaluated, rejected), ADR-014 (Orleans evaluated, rejected), ADR-015 (Lifecycle → Lambda), ADR-016 (timestamp-based aging), ADR-017 (hybrid real-time)
+
+## AI Environment
+
+- `ai-env.json` — declarative config for MCP servers, skills, agents. Run `/ai-env` to sync.
+- MCP servers: Atlassian (Confluence + Jira), Zephyr (test management), AWS Documentation, GitHub, Pencil (design)
+- Agent: `solution-architect` (`.claude/agents/solution-architect.md`) — use `@"solution-architect (agent)"` for architecture decisions and documentation updates
 
 ## Session Logging
 
