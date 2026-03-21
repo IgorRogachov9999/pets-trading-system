@@ -13,15 +13,6 @@ name: Post-Merge Build (Disabled — use initial-setup.yml until infra is stable
 
 on:
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Target environment'
-        required: true
-        default: 'dev'
-        type: choice
-        options:
-          - dev
-          - demo
 
 permissions:
   id-token: write
@@ -107,6 +98,6 @@ jobs:
 
       - name: Upload to Builds Bucket (SHA + latest)
         run: |
-          BUILDS_BUCKET="${{ secrets.PROJECT_NAME }}-${{ inputs.environment }}-builds"
+          BUILDS_BUCKET="${{ secrets.PROJECT_NAME }}-builds"
           aws s3 sync src/ui/dist/ s3://${BUILDS_BUCKET}/frontend/${{ github.sha }}/
           aws s3 sync src/ui/dist/ s3://${BUILDS_BUCKET}/frontend/latest/

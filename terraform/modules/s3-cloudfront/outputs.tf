@@ -13,7 +13,3 @@ output "cloudfront_domain_name" {
   value       = aws_cloudfront_distribution.frontend.domain_name
 }
 
-output "builds_bucket_name" {
-  description = "S3 bucket name for CI/CD build artifact storage."
-  value       = aws_s3_bucket.builds.bucket
-}

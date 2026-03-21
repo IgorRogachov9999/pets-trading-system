@@ -55,6 +55,15 @@ data "aws_ecr_repository" "lifecycle_lambda" {
 }
 
 # ------------------------------------------------------------------------------
+# Builds bucket — Data source referencing the shared builds artifact bucket.
+# Managed by terraform/builds/ (its own state: pts/builds/terraform.tfstate).
+# Run terraform/builds/ BEFORE this configuration in CI/CD pipelines.
+# ------------------------------------------------------------------------------
+data "aws_s3_bucket" "builds" {
+  bucket = "${var.project_name}-builds"
+}
+
+# ------------------------------------------------------------------------------
 # S3 + CloudFront — Frontend SPA hosting
 # ------------------------------------------------------------------------------
 module "s3_cloudfront" {

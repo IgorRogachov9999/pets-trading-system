@@ -91,8 +91,8 @@ output "websocket_api_endpoint" {
 }
 
 output "builds_bucket_name" {
-  description = "S3 bucket name for CI/CD build artifact storage."
-  value       = module.s3_cloudfront.builds_bucket_name
+  description = "S3 bucket name for CI/CD build artifact storage (shared across environments)."
+  value       = data.aws_s3_bucket.builds.bucket
 }
 
 output "github_actions_role_arn" {
