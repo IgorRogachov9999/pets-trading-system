@@ -1,7 +1,8 @@
 # ==============================================================================
 # modules/ecs/security_groups.tf
 # Security groups owned by the ECS module: ALB and ECS tasks.
-# The ECS module is responsible for its own network perimeter.
+# Cross-referencing rules use separate aws_security_group_rule resources to
+# avoid Terraform cycle errors (alb <-> ecs mutual references).
 # ==============================================================================
 
 # sg-alb: receives HTTPS from internet, forwards to ECS tasks on 8080
@@ -18,14 +19,6 @@ resource "aws_security_group" "alb" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  egress {
-    description     = "HTTP to ECS tasks"
-    from_port       = 8080
-    to_port         = 8080
-    protocol        = "tcp"
-    security_groups = [aws_security_group.ecs.id]
-  }
-
   tags = {
     Name = "${var.project_name}-${var.environment}-sg-alb"
   }
@@ -36,14 +29,6 @@ resource "aws_security_group" "ecs" {
   name        = "${var.project_name}-${var.environment}-sg-ecs"
   description = "ECS Fargate Trading API — inbound from ALB, outbound to RDS and VPC endpoints"
   vpc_id      = var.vpc_id
-
-  ingress {
-    description     = "HTTP from ALB"
-    from_port       = 8080
-    to_port         = 8080
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
-  }
 
   egress {
     description = "PostgreSQL to RDS"
@@ -68,4 +53,25 @@ resource "aws_security_group" "ecs" {
   tags = {
     Name = "${var.project_name}-${var.environment}-sg-ecs"
   }
+}
+
+# Cross-referencing rules — separate resources to break the alb <-> ecs cycle
+resource "aws_security_group_rule" "alb_egress_to_ecs" {
+  type                     = "egress"
+  from_port                = 8080
+  to_port                  = 8080
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.alb.id
+  source_security_group_id = aws_security_group.ecs.id
+  description              = "HTTP to ECS tasks"
+}
+
+resource "aws_security_group_rule" "ecs_ingress_from_alb" {
+  type                     = "ingress"
+  from_port                = 8080
+  to_port                  = 8080
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.ecs.id
+  source_security_group_id = aws_security_group.alb.id
+  description              = "HTTP from ALB"
 }
