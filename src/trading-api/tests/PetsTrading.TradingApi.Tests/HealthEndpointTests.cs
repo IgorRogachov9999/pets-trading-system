@@ -30,7 +30,7 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
         const string expectedMessage = "Pets Trading System API is running";
 
         // Act
-        var response = await _client.GetAsync("/api/health");
+        var response = await _client.GetAsync("/api/v1/health");
 
         // Assert — status code
         response.StatusCode.Should().Be(HttpStatusCode.OK);

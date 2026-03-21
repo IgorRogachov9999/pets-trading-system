@@ -8,7 +8,7 @@ namespace PetsTrading.TradingApi.Controllers;
 /// Returns 200 when the process is up and able to handle requests.
 /// </summary>
 [ApiController]
-[Route("api")]
+[Route("api/v1")]
 public sealed class HealthController : ControllerBase
 {
     private readonly HealthService _healthService;
