@@ -261,13 +261,12 @@ jobs:
           echo "lambda_function=$(terraform output -raw lambda_function_name)" >> $GITHUB_OUTPUT
 
   # ── Step 3a: Build & push backend container images ────────────────────────
+  # ECR URLs are computed from account ID + project name to avoid job output
+  # propagation failures caused by GHA secret masking (PROJECT_NAME is masked).
   build-backend:
     name: Build & Push Backend Images
     runs-on: ubuntu-latest
     needs: [terraform-ecr, terraform-apply]
-    env:
-      ECR_TRADING_API: ${{ needs.terraform-ecr.outputs.ecr_trading_api_url }}
-      ECR_LIFECYCLE: ${{ needs.terraform-ecr.outputs.ecr_lifecycle_url }}
 
     steps:
       - name: Checkout
@@ -285,25 +284,33 @@ jobs:
 
       - name: Build & Push Trading API
         run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          REGISTRY="${ACCOUNT_ID}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com"
+          ECR_TRADING_API="${REGISTRY}/${{ env.PROJECT_NAME }}-trading-api"
           docker build \
-            -t ${{ env.ECR_TRADING_API }}:${{ github.sha }} \
-            -t ${{ env.ECR_TRADING_API }}:latest \
+            -t "${ECR_TRADING_API}:${{ github.sha }}" \
+            -t "${ECR_TRADING_API}:latest" \
             -f src/trading-api/src/PetsTrading.TradingApi/Dockerfile \
             src/trading-api/
-          docker push ${{ env.ECR_TRADING_API }}:${{ github.sha }}
-          docker push ${{ env.ECR_TRADING_API }}:latest
+          docker push "${ECR_TRADING_API}:${{ github.sha }}"
+          docker push "${ECR_TRADING_API}:latest"
 
       - name: Build & Push Lifecycle Lambda
         run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          REGISTRY="${ACCOUNT_ID}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com"
+          ECR_LIFECYCLE="${REGISTRY}/${{ env.PROJECT_NAME }}-lifecycle-lambda"
           docker build \
-            -t ${{ env.ECR_LIFECYCLE }}:${{ github.sha }} \
-            -t ${{ env.ECR_LIFECYCLE }}:latest \
+            -t "${ECR_LIFECYCLE}:${{ github.sha }}" \
+            -t "${ECR_LIFECYCLE}:latest" \
             -f src/trading-api/src/lifecycle/PetsTrading.LifecycleLambda/Dockerfile \
             src/trading-api/
-          docker push ${{ env.ECR_LIFECYCLE }}:${{ github.sha }}
-          docker push ${{ env.ECR_LIFECYCLE }}:latest
+          docker push "${ECR_LIFECYCLE}:${{ github.sha }}"
+          docker push "${ECR_LIFECYCLE}:latest"
 
   # ── Step 3b: Build frontend & upload to builds bucket ────────────────────
+  # builds_bucket name is deterministic: ${project_name}-builds
+  # (avoids GHA secret masking that drops outputs containing PROJECT_NAME)
   build-frontend:
     name: Build & Upload Frontend
     runs-on: ubuntu-latest
@@ -337,12 +344,15 @@ jobs:
 
       - name: Upload to Builds Bucket (SHA + latest)
         run: |
+          BUILDS_BUCKET="${{ env.PROJECT_NAME }}-builds"
           aws s3 sync src/ui/dist/ \
-            s3://${{ needs.terraform-builds.outputs.builds_bucket }}/frontend/${{ github.sha }}/
+            "s3://${BUILDS_BUCKET}/frontend/${{ github.sha }}/"
           aws s3 sync src/ui/dist/ \
-            s3://${{ needs.terraform-builds.outputs.builds_bucket }}/frontend/latest/
+            "s3://${BUILDS_BUCKET}/frontend/latest/"
 
   # ── Step 4: Deploy all services ───────────────────────────────────────────
+  # All resource names are computed from PROJECT_NAME + ENVIRONMENT to avoid
+  # GHA secret masking that silently drops job outputs containing PROJECT_NAME.
   deploy:
     name: Deploy All Services
     runs-on: ubuntu-latest
@@ -358,42 +368,52 @@ jobs:
 
       - name: Deploy Trading API (ECS force-new-deployment)
         run: |
+          ECS_CLUSTER="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-cluster"
+          ECS_SERVICE="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-trading-api"
           aws ecs update-service \
-            --cluster ${{ needs.terraform-apply.outputs.ecs_cluster }} \
-            --service ${{ needs.terraform-apply.outputs.ecs_service }} \
+            --cluster "${ECS_CLUSTER}" \
+            --service "${ECS_SERVICE}" \
             --force-new-deployment \
             --region ${{ secrets.AWS_REGION }}
 
       - name: Wait for ECS service to stabilise
         run: |
+          ECS_CLUSTER="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-cluster"
+          ECS_SERVICE="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-trading-api"
           aws ecs wait services-stable \
-            --cluster ${{ needs.terraform-apply.outputs.ecs_cluster }} \
-            --services ${{ needs.terraform-apply.outputs.ecs_service }} \
+            --cluster "${ECS_CLUSTER}" \
+            --services "${ECS_SERVICE}" \
             --region ${{ secrets.AWS_REGION }}
 
       - name: Deploy Lifecycle Lambda (update image)
         run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          REGISTRY="${ACCOUNT_ID}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com"
+          ECR_LIFECYCLE="${REGISTRY}/${{ env.PROJECT_NAME }}-lifecycle-lambda"
+          LAMBDA_FUNCTION="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-lifecycle-lambda"
           aws lambda update-function-code \
-            --function-name ${{ needs.terraform-apply.outputs.lambda_function }} \
-            --image-uri ${{ needs.terraform-ecr.outputs.ecr_lifecycle_url }}:${{ github.sha }} \
+            --function-name "${LAMBDA_FUNCTION}" \
+            --image-uri "${ECR_LIFECYCLE}:${{ github.sha }}" \
             --region ${{ secrets.AWS_REGION }}
           aws lambda wait function-updated \
-            --function-name ${{ needs.terraform-apply.outputs.lambda_function }} \
+            --function-name "${LAMBDA_FUNCTION}" \
             --region ${{ secrets.AWS_REGION }}
 
       - name: Deploy Frontend to S3
         run: |
+          BUILDS_BUCKET="${{ env.PROJECT_NAME }}-builds"
+          FRONTEND_BUCKET="${{ env.PROJECT_NAME }}-frontend-${{ env.ENVIRONMENT }}"
           # Hashed static assets — cache 1 year
           aws s3 sync \
-            s3://${{ needs.terraform-builds.outputs.builds_bucket }}/frontend/${{ github.sha }}/ \
-            s3://${{ needs.terraform-apply.outputs.frontend_bucket }}/ \
+            "s3://${BUILDS_BUCKET}/frontend/${{ github.sha }}/" \
+            "s3://${FRONTEND_BUCKET}/" \
             --delete \
             --exclude "index.html" \
             --cache-control "public, max-age=31536000, immutable"
           # index.html — never cache
           aws s3 cp \
-            s3://${{ needs.terraform-builds.outputs.builds_bucket }}/frontend/${{ github.sha }}/index.html \
-            s3://${{ needs.terraform-apply.outputs.frontend_bucket }}/index.html \
+            "s3://${BUILDS_BUCKET}/frontend/${{ github.sha }}/index.html" \
+            "s3://${FRONTEND_BUCKET}/index.html" \
             --cache-control "no-cache, no-store, must-revalidate"
 
       - name: Invalidate CloudFront
