@@ -150,11 +150,56 @@ jobs:
         run: |
           echo "builds_bucket=$(terraform output -raw builds_bucket_name)" >> $GITHUB_OUTPUT
 
+  # ── Step 1c: Push placeholder images to ECR ───────────────────────────────
+  # Lambda requires the ECR image to exist at creation time. Push a minimal
+  # placeholder before terraform-apply so the resource can be created.
+  # The real images are pushed in Step 3 (build-backend) and deployed in Step 4.
+  push-placeholder-images:
+    name: Push Placeholder Images to ECR
+    runs-on: ubuntu-latest
+    needs: [terraform-ecr]
+    env:
+      ECR_TRADING_API: ${{ needs.terraform-ecr.outputs.ecr_trading_api_url }}
+      ECR_LIFECYCLE: ${{ needs.terraform-ecr.outputs.ecr_lifecycle_url }}
+
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-session-name: GHActions-Placeholder-${{ github.run_id }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Push placeholder images (skip if :latest already exists)
+        run: |
+          push_placeholder() {
+            local repo_url="$1"
+            local name="$2"
+            # Check if :latest already exists — skip if so (real image may already be there)
+            if aws ecr describe-images \
+                --repository-name "$(echo $repo_url | cut -d'/' -f2)" \
+                --image-ids imageTag=latest \
+                --region ${{ secrets.AWS_REGION }} \
+                --output text 2>/dev/null | grep -q latest; then
+              echo "$name: :latest already exists, skipping placeholder push"
+            else
+              echo "$name: pushing placeholder..."
+              docker pull --platform linux/amd64 public.ecr.aws/lambda/dotnet:8
+              docker tag public.ecr.aws/lambda/dotnet:8 ${repo_url}:latest
+              docker push ${repo_url}:latest
+            fi
+          }
+          push_placeholder "${{ env.ECR_LIFECYCLE }}" "lifecycle-lambda"
+          push_placeholder "${{ env.ECR_TRADING_API }}" "trading-api"
+
   # ── Step 2: Terraform apply (dev — env-specific infra) ────────────────────
   terraform-apply:
     name: Terraform Apply (dev)
     runs-on: ubuntu-latest
-    needs: [terraform-ecr, terraform-builds]
+    needs: [terraform-ecr, terraform-builds, push-placeholder-images]
     outputs:
       frontend_bucket: ${{ steps.tf-outputs.outputs.frontend_bucket }}
       builds_bucket: ${{ steps.tf-outputs.outputs.builds_bucket }}

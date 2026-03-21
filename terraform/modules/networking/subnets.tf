@@ -23,11 +23,11 @@ locals {
 # Public Subnets (ALB, NAT GW)
 # ------------------------------------------------------------------------------
 resource "aws_subnet" "public" {
-  count = var.az_count
+  count = 2
 
   vpc_id                  = aws_vpc.main.id
   cidr_block              = local.public_cidrs[count.index]
-  availability_zone       = var.az_names[count.index]
+  availability_zone       = var.all_az_names[count.index]
   map_public_ip_on_launch = true
 
   tags = {
