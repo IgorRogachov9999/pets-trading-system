@@ -85,9 +85,17 @@ jobs:
           cache: npm
           cache-dependency-path: src/ui/package-lock.json
 
-      - name: Install & Build
+      - name: Install
         working-directory: src/ui
-        run: npm ci && npm run build
+        run: npm ci
+
+      - name: Test
+        working-directory: src/ui
+        run: npm test
+
+      - name: Build
+        working-directory: src/ui
+        run: npm run build
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4

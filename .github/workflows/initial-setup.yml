@@ -309,6 +309,10 @@ jobs:
         working-directory: src/ui
         run: npm ci
 
+      - name: Test
+        working-directory: src/ui
+        run: npm test
+
       - name: Build
         working-directory: src/ui
         run: npm run build
