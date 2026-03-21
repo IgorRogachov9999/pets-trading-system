@@ -96,7 +96,7 @@ resource "aws_api_gateway_integration" "health" {
   http_method             = aws_api_gateway_method.health.http_method
   integration_http_method = "GET"
   type                    = "HTTP_PROXY"
-  uri                     = "http://${var.alb_dns_name}:8080/api/health"
+  uri                     = "http://${var.alb_dns_name}:8080/api/v1/health"
   connection_type         = "VPC_LINK"
   connection_id           = aws_api_gateway_vpc_link.main.id
 }
