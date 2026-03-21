@@ -1,0 +1,39 @@
+name: Frontend PR Check
+
+# Required GitHub Secrets:
+#   (none required — this workflow is AWS-free)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/ui/**'
+      - '.github/workflows/frontend-pr-check.yml'
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: src/ui/package-lock.json
+
+      - name: Install
+        working-directory: src/ui
+        run: npm ci
+
+      - name: Build
+        working-directory: src/ui
+        run: npm run build
+
+      - name: Test
+        working-directory: src/ui
+        run: npm test

@@ -60,3 +60,32 @@ docs/original/hackathon-overview.md
 .env
 .mcp.json
 ai-env.lock.json
+
+# Terraform local backend config (contains bucket/table names — not secrets but local-only)
+terraform/backend-dev.hcl
+terraform/backend-*.hcl
+!terraform/backend-dev.hcl.example
+
+# Terraform local state and working files
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/*.tfplan
+terraform/tfplan
+terraform/crash.log
+terraform/crash.*.log
+terraform/override.tf
+terraform/override.tf.json
+terraform/*_override.tf
+terraform/*_override.tf.json
+
+# React / Node
+src/ui/node_modules/
+src/ui/dist/
+src/ui/dist-ssr/
+src/ui/.env
+src/ui/.env.local
+src/ui/.env.*.local
+src/ui/coverage/
+src/ui/*.tsbuildinfo

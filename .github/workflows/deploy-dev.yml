@@ -1,0 +1,144 @@
+name: Deploy to Dev (Disabled — enable when ready for regular deployments)
+
+# Runs Terraform apply for dev, then deploys ECS, Lambda, and frontend.
+# Enable this workflow after initial-setup.yml has bootstrapped infrastructure
+# and the team is ready to adopt a build-then-deploy split model.
+#
+# Required GitHub Secrets:
+#   AWS_ROLE_ARN           - GitHub OIDC role ARN
+#   AWS_REGION             - e.g., us-east-1
+#   PROJECT_NAME           - pets-trading-system
+#   TF_STATE_BUCKET        - S3 bucket for Terraform state
+#   TF_STATE_LOCK_TABLE    - DynamoDB table for Terraform state lock
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag to deploy (must exist in ECR and builds bucket)'
+        required: false
+        default: 'latest'
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ENVIRONMENT: dev
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+
+jobs:
+  # ── Terraform apply (dev) ─────────────────────────────────────────────────
+  terraform-plan-apply:
+    name: Terraform Apply (dev)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-session-name: GHActions-TF-Dev-${{ github.run_id }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '~1.6'
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=${{ secrets.PROJECT_NAME }}/dev/terraform.tfstate" \
+            -backend-config="region=${{ secrets.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ secrets.TF_STATE_LOCK_TABLE }}" \
+            -backend-config="encrypt=true"
+
+      - name: Terraform Plan
+        working-directory: terraform
+        run: |
+          terraform plan \
+            -var-file=environments/dev.tfvars \
+            -var="project_name=${{ secrets.PROJECT_NAME }}" \
+            -out=tfplan \
+            -no-color
+
+      - name: Terraform Apply
+        working-directory: terraform
+        run: terraform apply -auto-approve tfplan
+
+  # ── Deploy all services ───────────────────────────────────────────────────
+  deploy-services:
+    name: Deploy Services
+    runs-on: ubuntu-latest
+    needs: terraform-plan-apply
+
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-session-name: GHActions-Deploy-Dev-${{ github.run_id }}
+
+      - name: Deploy ECS (Trading API)
+        run: |
+          CLUSTER="${{ secrets.PROJECT_NAME }}-dev-cluster"
+          SERVICE="${{ secrets.PROJECT_NAME }}-dev-trading-api"
+          aws ecs update-service \
+            --cluster ${CLUSTER} \
+            --service ${SERVICE} \
+            --force-new-deployment
+          aws ecs wait services-stable \
+            --cluster ${CLUSTER} \
+            --services ${SERVICE}
+
+      - name: Deploy Lifecycle Lambda
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          # ECR repos are shared across environments — no environment suffix in repo names
+          IMAGE_URI="${ACCOUNT_ID}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.PROJECT_NAME }}-lifecycle-lambda:${{ inputs.image_tag }}"
+          FUNCTION_NAME="${{ secrets.PROJECT_NAME }}-dev-lifecycle-lambda"
+          aws lambda update-function-code \
+            --function-name ${FUNCTION_NAME} \
+            --image-uri ${IMAGE_URI}
+          aws lambda wait function-updated \
+            --function-name ${FUNCTION_NAME}
+
+      - name: Deploy Frontend to S3
+        run: |
+          BUILDS_BUCKET="${{ secrets.PROJECT_NAME }}-dev-builds"
+          FRONTEND_BUCKET="${{ secrets.PROJECT_NAME }}-dev-frontend"
+          # Hashed static assets — cache 1 year
+          aws s3 sync \
+            s3://${BUILDS_BUCKET}/frontend/${{ inputs.image_tag }}/ \
+            s3://${FRONTEND_BUCKET}/ \
+            --delete \
+            --exclude "index.html" \
+            --cache-control "public, max-age=31536000, immutable"
+          # index.html — never cache
+          aws s3 cp \
+            s3://${BUILDS_BUCKET}/frontend/${{ inputs.image_tag }}/index.html \
+            s3://${FRONTEND_BUCKET}/index.html \
+            --cache-control "no-cache, no-store, must-revalidate"
+
+      - name: Invalidate CloudFront
+        run: |
+          # Discover the distribution ID from the origin domain
+          FRONTEND_BUCKET="${{ secrets.PROJECT_NAME }}-dev-frontend"
+          DIST_ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?Origins.Items[0].DomainName==\`${FRONTEND_BUCKET}.s3.amazonaws.com\`].Id" \
+            --output text)
+          if [ -n "$DIST_ID" ] && [ "$DIST_ID" != "None" ]; then
+            aws cloudfront create-invalidation \
+              --distribution-id ${DIST_ID} \
+              --paths "/*"
+          else
+            echo "WARNING: CloudFront distribution not found for ${FRONTEND_BUCKET} — skipping invalidation"
+          fi
