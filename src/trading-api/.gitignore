@@ -1,0 +1,56 @@
+## .NET gitignore — standard for ASP.NET Core projects
+
+# Build output
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Publish output
+**/publish/
+**/PublishProfiles/
+
+# Test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.trx
+*.coverage
+*.coveragexml
+coverage*/
+
+# MSBuild crash logs
+MSBuildCrashLogs/
+
+# dotnet tool manifests (local, not committed)
+.dotnet/
+
+# Docker build context exclusions (via .dockerignore preferred)
+# but keep here as safety net
+*.env
+*.env.*
+!*.env.example
+secrets/
+
+# OS junk
+.DS_Store
+Thumbs.db

@@ -1,0 +1,20 @@
+name: "[SUPERSEDED] Backend Deploy — use initial-setup.yml or deploy-dev.yml"
+
+# This workflow has been superseded.
+# - For bootstrapping infrastructure: use initial-setup.yml (push to main)
+# - For regular dev deploys: use deploy-dev.yml (workflow_dispatch)
+# - For prod deploys: use deploy-prod.yml (workflow_dispatch)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  notice:
+    name: Superseded Notice
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print notice
+        run: |
+          echo "This workflow is superseded."
+          echo "Use initial-setup.yml for bootstrap or deploy-dev.yml / deploy-prod.yml for regular deploys."
+          exit 1

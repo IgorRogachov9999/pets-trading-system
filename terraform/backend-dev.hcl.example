@@ -1,0 +1,13 @@
+# Copy this file to backend-dev.hcl (gitignored) and fill in your values.
+# Then initialise Terraform locally with:
+#
+#   terraform init -backend-config=backend-dev.hcl
+#
+# The S3 bucket and DynamoDB table must be created manually before first use.
+# See docs/stories/TS-001/task-4-cicd.md for bootstrap commands.
+
+bucket         = "YOUR-TF-STATE-BUCKET"
+key            = "pets-trading-system/dev/terraform.tfstate"
+region         = "us-east-1"
+dynamodb_table = "YOUR-TF-LOCK-TABLE"
+encrypt        = true

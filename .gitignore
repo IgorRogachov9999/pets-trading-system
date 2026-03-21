@@ -60,3 +60,8 @@ docs/original/hackathon-overview.md
 .env
 .mcp.json
 ai-env.lock.json
+
+# Terraform local backend config (contains bucket/table names — not secrets but local-only)
+terraform/backend-dev.hcl
+terraform/backend-*.hcl
+!terraform/backend-dev.hcl.example
