@@ -106,13 +106,17 @@ resource "aws_api_gateway_deployment" "main" {
   rest_api_id = aws_api_gateway_rest_api.main.id
 
   triggers = {
+    # Include integration URIs in the hash so that URI changes trigger a redeploy.
+    # Using only resource IDs misses content changes (e.g. path corrections).
     redeployment = sha1(jsonencode([
       aws_api_gateway_resource.proxy.id,
       aws_api_gateway_method.proxy.id,
       aws_api_gateway_integration.proxy.id,
+      aws_api_gateway_integration.proxy.uri,
       aws_api_gateway_resource.health.id,
       aws_api_gateway_method.health.id,
       aws_api_gateway_integration.health.id,
+      aws_api_gateway_integration.health.uri,
     ]))
   }
 

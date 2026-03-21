@@ -23,6 +23,13 @@ RUN dotnet publish src/PetsTrading.TradingApi/PetsTrading.TradingApi.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
+# Install curl for ECS container health checks.
+# dotnet/aspnet:10.0 (debian:bookworm-slim base) ships only ca-certificates;
+# curl must be added explicitly.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Use the built-in non-root user from the .NET runtime base image (UID 1654).
 # $APP_UID is set by Microsoft's dotnet/aspnet images; avoids addgroup/adduser
 # which are not available in chiseled or minimal variants.
