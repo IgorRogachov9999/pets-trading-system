@@ -67,11 +67,11 @@ resource "aws_db_instance" "main" {
   parameter_group_name = aws_db_parameter_group.postgres16.name
 
   # Backup and maintenance
-  backup_retention_period   = 7
-  backup_window             = "03:00-04:00"
-  maintenance_window        = "sun:04:00-sun:05:00"
-  copy_tags_to_snapshot     = true
-  delete_automated_backups  = true
+  backup_retention_period  = 7
+  backup_window            = "03:00-04:00"
+  maintenance_window       = "sun:04:00-sun:05:00"
+  copy_tags_to_snapshot    = true
+  delete_automated_backups = true
 
   # Performance Insights (free tier: 7-day retention)
   performance_insights_enabled          = true

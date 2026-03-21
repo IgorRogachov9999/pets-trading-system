@@ -35,11 +35,11 @@ resource "aws_api_gateway_vpc_link" "main" {
 
 # Cognito authorizer
 resource "aws_api_gateway_authorizer" "cognito" {
-  name                   = "${var.project_name}-${var.environment}-cognito-authorizer"
-  rest_api_id            = aws_api_gateway_rest_api.main.id
-  type                   = "COGNITO_USER_POOLS"
-  identity_source        = "method.request.header.Authorization"
-  provider_arns          = [var.cognito_user_pool_arn]
+  name            = "${var.project_name}-${var.environment}-cognito-authorizer"
+  rest_api_id     = aws_api_gateway_rest_api.main.id
+  type            = "COGNITO_USER_POOLS"
+  identity_source = "method.request.header.Authorization"
+  provider_arns   = [var.cognito_user_pool_arn]
 }
 
 # Catch-all proxy resource — forwards all paths to ALB via VPC Link
