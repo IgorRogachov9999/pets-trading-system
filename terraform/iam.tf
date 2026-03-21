@@ -122,14 +122,18 @@ resource "aws_iam_role_policy" "github_actions_cicd" {
         Resource = [
           "arn:aws:s3:::${var.project_name}-frontend-*",
           "arn:aws:s3:::${var.project_name}-frontend-*/*",
-          "arn:aws:s3:::${var.project_name}-${var.environment}-builds",
-          "arn:aws:s3:::${var.project_name}-${var.environment}-builds/*"
+          # Shared builds bucket — no environment suffix (build once, deploy anywhere)
+          "arn:aws:s3:::${var.project_name}-builds",
+          "arn:aws:s3:::${var.project_name}-builds/*"
         ]
       },
       {
         Sid    = "CloudFrontInvalidation"
         Effect = "Allow"
-        Action = ["cloudfront:CreateInvalidation"]
+        Action = [
+          "cloudfront:CreateInvalidation",
+          "cloudfront:ListDistributions" # Required for runtime auto-discovery of distribution ID
+        ]
         Resource = "*" # Distribution ID not known at role creation time
       },
       {
