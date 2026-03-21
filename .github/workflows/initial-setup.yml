@@ -173,27 +173,22 @@ jobs:
       - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Push placeholder images (skip if :latest already exists)
+      - name: Pull placeholder base image
+        run: docker pull --platform linux/amd64 public.ecr.aws/lambda/dotnet:8
+
+      - name: Push placeholder to lifecycle-lambda ECR
+        env:
+          REPO: ${{ needs.terraform-ecr.outputs.ecr_lifecycle_url }}
         run: |
-          push_placeholder() {
-            local repo_url="$1"
-            local name="$2"
-            # Check if :latest already exists — skip if so (real image may already be there)
-            if aws ecr describe-images \
-                --repository-name "$(echo $repo_url | cut -d'/' -f2)" \
-                --image-ids imageTag=latest \
-                --region ${{ secrets.AWS_REGION }} \
-                --output text 2>/dev/null | grep -q latest; then
-              echo "$name: :latest already exists, skipping placeholder push"
-            else
-              echo "$name: pushing placeholder..."
-              docker pull --platform linux/amd64 public.ecr.aws/lambda/dotnet:8
-              docker tag public.ecr.aws/lambda/dotnet:8 ${repo_url}:latest
-              docker push ${repo_url}:latest
-            fi
-          }
-          push_placeholder "${{ env.ECR_LIFECYCLE }}" "lifecycle-lambda"
-          push_placeholder "${{ env.ECR_TRADING_API }}" "trading-api"
+          docker tag public.ecr.aws/lambda/dotnet:8 "$REPO:latest"
+          docker push "$REPO:latest"
+
+      - name: Push placeholder to trading-api ECR
+        env:
+          REPO: ${{ needs.terraform-ecr.outputs.ecr_trading_api_url }}
+        run: |
+          docker tag public.ecr.aws/lambda/dotnet:8 "$REPO:latest"
+          docker push "$REPO:latest"
 
   # ── Step 2: Terraform apply (dev — env-specific infra) ────────────────────
   terraform-apply:
