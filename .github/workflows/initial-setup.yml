@@ -151,49 +151,11 @@ jobs:
         run: |
           echo "builds_bucket=$(terraform output -raw builds_bucket_name)" >> $GITHUB_OUTPUT
 
-  # ── Step 1c: Push placeholder images to ECR ───────────────────────────────
-  # Lambda requires the ECR image to exist at creation time. Push a minimal
-  # placeholder before terraform-apply so the resource can be created.
-  # ECR URLs are computed from account ID + region + project name to avoid
-  # fragile Terraform output propagation. Real images are pushed in Step 3.
-  push-placeholder-images:
-    name: Push Placeholder Images to ECR
-    runs-on: ubuntu-latest
-    needs: [terraform-ecr]
-
-    steps:
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ secrets.AWS_REGION }}
-          role-session-name: GHActions-Placeholder-${{ github.run_id }}
-
-      - name: Login to ECR
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Push placeholder images to ECR
-        run: |
-          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          REGION="${{ secrets.AWS_REGION }}"
-          PROJECT="${{ env.PROJECT_NAME }}"
-          REGISTRY="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
-          LIFECYCLE_REPO="${REGISTRY}/${PROJECT}-lifecycle-lambda"
-          TRADING_API_REPO="${REGISTRY}/${PROJECT}-trading-api"
-
-          docker pull --platform linux/amd64 public.ecr.aws/lambda/dotnet:8
-
-          docker tag public.ecr.aws/lambda/dotnet:8 "${LIFECYCLE_REPO}:latest"
-          docker push "${LIFECYCLE_REPO}:latest"
-
-          docker tag public.ecr.aws/lambda/dotnet:8 "${TRADING_API_REPO}:latest"
-          docker push "${TRADING_API_REPO}:latest"
-
   # ── Step 2: Terraform apply (dev — env-specific infra) ────────────────────
   terraform-apply:
     name: Terraform Apply (dev)
     runs-on: ubuntu-latest
-    needs: [terraform-ecr, terraform-builds, push-placeholder-images]
+    needs: [terraform-ecr, terraform-builds]
     outputs:
       frontend_bucket: ${{ steps.tf-outputs.outputs.frontend_bucket }}
       builds_bucket: ${{ steps.tf-outputs.outputs.builds_bucket }}
