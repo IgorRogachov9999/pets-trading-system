@@ -43,12 +43,6 @@ variable "db_instance_class" {
   default     = "db.t3.micro"
 }
 
-variable "github_repo" {
-  description = "GitHub repository in owner/name format for OIDC trust policy."
-  type        = string
-  default     = "ihorrohachov/pets-trading-system"
-}
-
 variable "ecs_cpu" {
   description = "ECS task CPU units. Use 256 for dev, 512 for demo."
   type        = string
