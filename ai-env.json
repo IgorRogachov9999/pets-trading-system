@@ -177,6 +177,11 @@
       "name": "aws-terraform",
       "transport": "docker",
       "image": "mcp/aws-terraform"
+    },
+    {
+      "name": "aws-core",
+      "transport": "uvx",
+      "package": "awslabs.core-mcp-server@latest"
     }
   ],
   "agents": [
