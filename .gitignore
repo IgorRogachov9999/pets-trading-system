@@ -88,3 +88,4 @@ src/ui/.env
 src/ui/.env.local
 src/ui/.env.*.local
 src/ui/coverage/
+src/ui/*.tsbuildinfo
