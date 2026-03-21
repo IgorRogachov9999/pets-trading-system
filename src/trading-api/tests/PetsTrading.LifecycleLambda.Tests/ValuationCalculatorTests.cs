@@ -1,5 +1,6 @@
 using FluentAssertions;
 using PetsTrading.LifecycleLambda.Services;
+using Xunit;
 
 namespace PetsTrading.LifecycleLambda.Tests;
 
