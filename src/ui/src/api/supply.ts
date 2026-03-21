@@ -10,11 +10,11 @@ export interface SupplyItem {
 }
 
 export async function getSupply(): Promise<SupplyItem[]> {
-  return apiFetch<SupplyItem[]>('/api/supply')
+  return apiFetch<SupplyItem[]>('/api/v1/supply')
 }
 
 export async function purchasePet(dictionaryId: number): Promise<Pet> {
-  return apiFetch<Pet>('/api/supply/purchase', {
+  return apiFetch<Pet>('/api/v1/supply/purchase', {
     method: 'POST',
     body: JSON.stringify({ dictionaryId }),
   })
