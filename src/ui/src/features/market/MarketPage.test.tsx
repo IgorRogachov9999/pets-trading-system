@@ -78,7 +78,7 @@ describe('MarketPage', () => {
     renderMarketPage()
 
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent(/health check failed/i)
+      expect(screen.getByRole('alert')).toHaveTextContent(/503 service unavailable/i)
     })
   })
 
