@@ -60,7 +60,7 @@ resource "aws_lb_target_group" "trading_api" {
 
   health_check {
     enabled             = true
-    path                = "/api/health"
+    path                = "/api/v1/health"
     port                = "traffic-port"
     protocol            = "HTTP"
     healthy_threshold   = 2
@@ -130,7 +130,7 @@ resource "aws_ecs_task_definition" "trading_api" {
       healthCheck = {
         # dotnet/aspnet:10.0 is a minimal Ubuntu image — curl is not included.
         # wget is available and provides the same liveness check.
-        command     = ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/api/health || exit 1"]
+        command     = ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/api/v1/health || exit 1"]
         interval    = 30
         timeout     = 5
         retries     = 3
