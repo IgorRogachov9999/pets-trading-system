@@ -345,9 +345,19 @@ jobs:
         run: |
           ECS_CLUSTER="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-cluster"
           ECS_SERVICE="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-trading-api"
+          TASK_FAMILY="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-trading-api"
+          # Resolve the latest registered task definition revision so that
+          # Terraform-registered changes (e.g. health check path updates) are
+          # picked up even though the ECS service has ignore_changes = [task_definition].
+          LATEST_TASK_DEF=$(aws ecs describe-task-definition \
+            --task-definition "${TASK_FAMILY}" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text \
+            --region ${{ secrets.AWS_REGION }})
           aws ecs update-service \
             --cluster "${ECS_CLUSTER}" \
             --service "${ECS_SERVICE}" \
+            --task-definition "${LATEST_TASK_DEF}" \
             --force-new-deployment \
             --region ${{ secrets.AWS_REGION }}
 
