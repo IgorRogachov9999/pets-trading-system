@@ -133,11 +133,17 @@ All architecture docs are in `docs/architecture/`. Published to Confluence space
 
 ```
 pets-trading-system/
+├── database/                    # Database migrations (outside API source)
+│   └── trading/
+│       └── migrations/          # Liquibase changelogs for the `trading` DB
+│           ├── db.changelog-master.xml
+│           └── changesets/      # SQL changesets (001-create-traders.sql, etc.)
 ├── docs/                        # All documentation
 │   ├── original/                # Raw hackathon brief, requirements, judging matrix
 │   ├── requirements/            # BRD, user story map, BDD scenarios
 │   ├── epics/                   # One file per epic (EPIC-000 through EPIC-013)
 │   ├── architecture/            # arc42 docs + adrs/ folder (17 ADRs)
+│   ├── spikes/                  # Implementation spikes (e.g. SPIKE-AUTH-000)
 │   ├── stories/                 # User stories (one folder per story, e.g. US-000-1/)
 │   └── tasks/                   # Non-business tasks (infra, devops, tech-debt, etc.)
 ├── designs/                     # UI/UX design artifacts
@@ -177,13 +183,33 @@ pets-trading-system/
 
 The .NET solution uses Clean Architecture with 4 layers (dependency direction: outermost → innermost):
 
-- **Domain** — Entities (`Trader`, `Pet`, `Listing`, `Bid`, `Trade`, `Notification`, `PetDictionary`) and repository interfaces (`ITraderRepository`, `IPetRepository`, `IListingRepository`, `IBidRepository`, `ITradeRepository`, `INotificationRepository`). Zero external dependencies.
-- **Application** — Business services (depends on Domain interfaces only).
-- **Infrastructure** — Dapper-based repository implementations against PostgreSQL (depends on Domain).
+- **Domain** — Entities (`Trader`, `Pet`, `Listing`, `Bid`, `Trade`, `Notification`, `PetDictionary`), repository interfaces (`ITraderRepository`, etc.), and `IUnitOfWork`. Zero external dependencies.
+- **Application** — Business services (depends on Domain interfaces only). Services receive `IUnitOfWork`, not individual repositories.
+- **Infrastructure** — Dapper-based repository implementations + `UnitOfWork` (wraps `NpgsqlConnection` + `NpgsqlTransaction`). All repos share the same connection/transaction within a UoW.
 - **TradingApi** — ASP.NET Core host; wires DI, runs Controllers (depends on Application + Infrastructure).
 - **LifecycleLambda** — Standalone Lambda (`Function.cs` + `Services/`); shares Domain project but has its own deployment artifact.
 
 All REST routes use `/api/v1/` prefix. Database access is Dapper only — no ORM.
+
+### IUnitOfWork
+
+```csharp
+public interface IUnitOfWork : IDisposable, IAsyncDisposable
+{
+    ITraderRepository Traders { get; }
+    Task OpenConnectionAsync(CancellationToken ct = default);
+    Task CloseConnectionAsync(CancellationToken ct = default);
+    Task BeginTransactionAsync(CancellationToken ct = default);
+    Task CommitTransactionAsync(CancellationToken ct = default);
+    Task RollbackTransactionAsync(CancellationToken ct = default);
+}
+```
+
+Callers explicitly open the connection, optionally begin a transaction, then commit or rollback. Connection/transaction are `null` until opened/begun.
+
+### Database Migrations
+
+Liquibase changesets live at `database/trading/migrations/` (repo root, not inside the .NET project). The CI/CD pipeline runs `liquibase update` **before** deploying ECS containers. Backend developers write changesets in SQL format with the `-- liquibase formatted sql` header. Entity IDs are `UUID` generated via `Guid.NewGuid()` in the application layer — no `DEFAULT gen_random_uuid()` in the DB.
 
 ## Frontend Architecture
 
@@ -192,7 +218,8 @@ Feature-based React SPA (Vite + TypeScript + Tailwind CSS):
 - `src/api/` — thin fetch wrappers per resource; all return typed responses. Import these into TanStack Query hooks.
 - `src/features/{name}/` — self-contained feature module (components + local hooks). Current features: `auth`, `market`, `portfolio`, `leaderboard`, `analysis`.
 - REST polling via TanStack Query (5s `refetchInterval`). WebSocket events from API Gateway trigger `queryClient.invalidateQueries()` for immediate cache refresh.
-- Cognito JWT stored in browser; attached as `Authorization: Bearer` header on all API calls.
+- Cognito **ID token** sent as `Authorization: Bearer` on all API calls. ID token (not access token) is used because it carries the `sub` claim needed for trader lookup. Access/ID tokens live in React Context memory only — never `localStorage`. The SDK manages its own refresh token in `localStorage` for session restore on page reload.
+- Post-login redirect lands at `/accounts/dashboard`. The backend endpoint for account data is `GET /api/v1/accounts/dashboard`.
 
 ## Terraform Layout
 
@@ -210,6 +237,7 @@ Apply with var files: `terraform apply -var-file=environments/dev.tfvars`.
 - `docs/requirements/` — BRD, user story map, BDD scenarios
 - `docs/epics/` — one file per epic (EPIC-000 through EPIC-013)
 - `docs/stories/` — one folder per user story (US-000-1 through US-013-4); each contains `story.md`
+- `docs/spikes/` — implementation spikes written before ticket creation (e.g. `SPIKE-AUTH-000-authentication.md`)
 - `docs/architecture/` — arc42 docs + `adrs/` folder (17 ADRs)
 
 ## AI Environment
