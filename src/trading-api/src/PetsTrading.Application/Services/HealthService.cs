@@ -6,6 +6,6 @@ namespace PetsTrading.Application.Services;
 /// </summary>
 public sealed class HealthService
 {
-    /// <summary>Returns a status message indicating the application is operational.</summary>
-    public string GetStatus() => "Pets Trading System API is running";
+    /// <summary>Returns the ECS health check sentinel string.</summary>
+    public string GetStatus() => "Healthy";
 }

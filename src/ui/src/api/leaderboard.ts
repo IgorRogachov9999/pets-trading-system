@@ -7,5 +7,5 @@ export interface LeaderboardEntry {
 }
 
 export async function getLeaderboard(): Promise<LeaderboardEntry[]> {
-  return apiFetch<LeaderboardEntry[]>('/api/leaderboard')
+  return apiFetch<LeaderboardEntry[]>('/api/v1/leaderboard')
 }

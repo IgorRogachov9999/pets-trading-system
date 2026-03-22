@@ -1,8 +1,3 @@
-output "sg_alb_id" {
-  description = "Security group ID for the Application Load Balancer."
-  value       = aws_security_group.alb.id
-}
-
 output "sg_ecs_id" {
   description = "Security group ID for ECS Fargate tasks."
   value       = aws_security_group.ecs.id

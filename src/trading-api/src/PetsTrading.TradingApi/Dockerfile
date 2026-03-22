@@ -23,9 +23,17 @@ RUN dotnet publish src/PetsTrading.TradingApi/PetsTrading.TradingApi.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-# Run as a non-root user for least-privilege security (ECS Fargate requirement).
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
-USER appuser
+# Install curl for ECS container health checks.
+# dotnet/aspnet:10.0 (debian:bookworm-slim base) ships only ca-certificates;
+# curl must be added explicitly.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Use the built-in non-root user from the .NET runtime base image (UID 1654).
+# $APP_UID is set by Microsoft's dotnet/aspnet images; avoids addgroup/adduser
+# which are not available in chiseled or minimal variants.
+USER $APP_UID
 
 # Copy published output from the build stage.
 COPY --from=build /app/publish .

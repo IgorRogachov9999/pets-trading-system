@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { fetchHealth } from '../../api/health'
-import type { HealthResponse } from '../../api/health'
+import { fetchTest } from '../../api/test'
+import type { TestResponse } from '../../api/test'
 
 export function MarketPage() {
-  const { data, isLoading, isError, error } = useQuery<HealthResponse, Error>({
-    queryKey: ['health'],
-    queryFn: fetchHealth,
+  const { data, isLoading, isError, error } = useQuery<TestResponse, Error>({
+    queryKey: ['test'],
+    queryFn: fetchTest,
   })
 
   return (

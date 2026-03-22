@@ -1,0 +1,81 @@
+name: Build & Upload Frontend
+
+# Builds the React SPA and uploads the artefact to the builds S3 bucket on
+# every merge to main that touches frontend source.
+#
+# NOTE: Enable this workflow (and disable initial-setup.yml) once infrastructure
+# is stable and you want per-component builds decoupled from Terraform.
+#
+# Required GitHub Secrets:
+#   AWS_ROLE_ARN           - GitHub OIDC role ARN
+#   AWS_REGION             - e.g., us-east-1
+#   PROJECT_NAME           - pets-trading-system
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/ui/**'
+      - '.github/workflows/build-frontend.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  PROJECT_NAME: ${{ secrets.PROJECT_NAME }}
+  ENVIRONMENT: dev
+
+jobs:
+  build-and-upload:
+    name: Build & Upload Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: src/ui/package-lock.json
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-session-name: GHActions-BuildFrontend-${{ github.run_id }}
+
+      - name: Resolve API Gateway URL
+        id: api-url
+        run: |
+          API_ID=$(aws apigateway get-rest-apis \
+            --query "items[?name=='${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-api'].id" \
+            --output text)
+          echo "VITE_API_BASE_URL=https://${API_ID}.execute-api.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ENVIRONMENT }}" >> $GITHUB_ENV
+
+      - name: Install
+        working-directory: src/ui
+        run: npm ci
+
+      - name: Test
+        working-directory: src/ui
+        run: npm test
+
+      - name: Build
+        working-directory: src/ui
+        run: npm run build
+
+      - name: Upload to Builds Bucket (SHA + latest)
+        run: |
+          # builds bucket name is deterministic: ${project_name}-builds
+          BUILDS_BUCKET="${{ env.PROJECT_NAME }}-builds"
+          aws s3 sync src/ui/dist/ \
+            "s3://${BUILDS_BUCKET}/frontend/${{ github.sha }}/"
+          aws s3 sync src/ui/dist/ \
+            "s3://${BUILDS_BUCKET}/frontend/latest/"

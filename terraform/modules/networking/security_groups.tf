@@ -14,7 +14,7 @@
 # sg-vpce: receives HTTPS from ECS and Lambda; attached to all interface endpoints
 resource "aws_security_group" "vpce" {
   name        = "${var.project_name}-${var.environment}-sg-vpce"
-  description = "VPC Endpoints — inbound HTTPS from ECS and Lambda"
+  description = "VPC Endpoints - inbound HTTPS from ECS and Lambda"
   vpc_id      = aws_vpc.main.id
 
   # Ingress rules are added by ECS and Lambda modules as aws_security_group_rule

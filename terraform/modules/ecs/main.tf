@@ -35,32 +35,32 @@ resource "aws_ecs_cluster" "main" {
 }
 
 # ------------------------------------------------------------------------------
-# Application Load Balancer
+# Network Load Balancer (internal — accessed only via API Gateway VPC Link)
+# API Gateway REST VPC Links require NLB, not ALB.
 # ------------------------------------------------------------------------------
 resource "aws_lb" "trading_api" {
-  name               = "${var.project_name}-${var.environment}-alb"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb.id]
-  subnets            = var.public_subnet_ids
+  name               = "${var.project_name}-${var.environment}-nlb"
+  internal           = true
+  load_balancer_type = "network"
+  subnets            = var.private_app_subnet_ids
 
   enable_deletion_protection = false
 
   tags = {
-    Name = "${var.project_name}-${var.environment}-alb-trading-api"
+    Name = "${var.project_name}-${var.environment}-nlb-trading-api"
   }
 }
 
 resource "aws_lb_target_group" "trading_api" {
   name        = "${var.project_name}-${var.environment}-tg"
   port        = 8080
-  protocol    = "HTTP"
+  protocol    = "TCP"
   vpc_id      = var.vpc_id
   target_type = "ip" # Required for Fargate awsvpc network mode
 
   health_check {
     enabled             = true
-    path                = "/api/health"
+    path                = "/api/v1/health"
     port                = "traffic-port"
     protocol            = "HTTP"
     healthy_threshold   = 2
@@ -80,7 +80,7 @@ resource "aws_lb_target_group" "trading_api" {
 resource "aws_lb_listener" "trading_api" {
   load_balancer_arn = aws_lb.trading_api.arn
   port              = 8080
-  protocol          = "HTTP"
+  protocol          = "TCP"
 
   default_action {
     type             = "forward"
@@ -128,7 +128,7 @@ resource "aws_ecs_task_definition" "trading_api" {
       }
 
       healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:8080/api/health || exit 1"]
+        command     = ["CMD-SHELL", "curl -f http://localhost:8080/api/v1/health || exit 1"]
         interval    = 30
         timeout     = 5
         retries     = 3

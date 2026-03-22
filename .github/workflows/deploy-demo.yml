@@ -216,7 +216,7 @@ jobs:
       - name: Deploy Frontend to S3
         run: |
           BUILDS_BUCKET="${{ secrets.PROJECT_NAME }}-builds"
-          FRONTEND_BUCKET="${{ secrets.PROJECT_NAME }}-demo-frontend"
+          FRONTEND_BUCKET="${{ secrets.PROJECT_NAME }}-frontend-demo"
           # Hashed static assets — cache 1 year
           aws s3 sync \
             s3://${BUILDS_BUCKET}/frontend/${{ inputs.image_tag }}/ \
@@ -232,7 +232,7 @@ jobs:
 
       - name: Invalidate CloudFront
         run: |
-          FRONTEND_BUCKET="${{ secrets.PROJECT_NAME }}-demo-frontend"
+          FRONTEND_BUCKET="${{ secrets.PROJECT_NAME }}-frontend-demo"
           DIST_ID=$(aws cloudfront list-distributions \
             --query "DistributionList.Items[?Origins.Items[0].DomainName==\`${FRONTEND_BUCKET}.s3.amazonaws.com\`].Id" \
             --output text)

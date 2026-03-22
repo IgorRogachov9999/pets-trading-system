@@ -35,11 +35,11 @@ resource "aws_api_gateway_vpc_link" "main" {
 
 # Cognito authorizer
 resource "aws_api_gateway_authorizer" "cognito" {
-  name                   = "${var.project_name}-${var.environment}-cognito-authorizer"
-  rest_api_id            = aws_api_gateway_rest_api.main.id
-  type                   = "COGNITO_USER_POOLS"
-  identity_source        = "method.request.header.Authorization"
-  provider_arns          = [var.cognito_user_pool_arn]
+  name            = "${var.project_name}-${var.environment}-cognito-authorizer"
+  rest_api_id     = aws_api_gateway_rest_api.main.id
+  type            = "COGNITO_USER_POOLS"
+  identity_source = "method.request.header.Authorization"
+  provider_arns   = [var.cognito_user_pool_arn]
 }
 
 # Catch-all proxy resource — forwards all paths to ALB via VPC Link
@@ -96,9 +96,129 @@ resource "aws_api_gateway_integration" "health" {
   http_method             = aws_api_gateway_method.health.http_method
   integration_http_method = "GET"
   type                    = "HTTP_PROXY"
-  uri                     = "http://${var.alb_dns_name}:8080/api/health"
+  uri                     = "http://${var.alb_dns_name}:8080/api/v1/health"
   connection_type         = "VPC_LINK"
   connection_id           = aws_api_gateway_vpc_link.main.id
+}
+
+# Test endpoint — no auth required (mirrors /health pattern)
+resource "aws_api_gateway_resource" "test" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_rest_api.main.root_resource_id
+  path_part   = "test"
+}
+
+resource "aws_api_gateway_method" "test" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.test.id
+  http_method   = "GET"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "test" {
+  rest_api_id             = aws_api_gateway_rest_api.main.id
+  resource_id             = aws_api_gateway_resource.test.id
+  http_method             = aws_api_gateway_method.test.http_method
+  integration_http_method = "GET"
+  type                    = "HTTP_PROXY"
+  uri                     = "http://${var.alb_dns_name}:8080/api/v1/test"
+  connection_type         = "VPC_LINK"
+  connection_id           = aws_api_gateway_vpc_link.main.id
+}
+
+# OPTIONS on /test — CORS preflight (MOCK, no auth)
+resource "aws_api_gateway_method" "test_options" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.test.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "test_options" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.test.id
+  http_method = aws_api_gateway_method.test_options.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "test_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.test.id
+  http_method = aws_api_gateway_method.test_options.http_method
+  status_code = "200"
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Origin"  = true
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "test_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.test.id
+  http_method = aws_api_gateway_method.test_options.http_method
+  status_code = aws_api_gateway_method_response.test_options_200.status_code
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Origin"  = "'https://d2681j5g1s1ydv.cloudfront.net'"
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,Authorization'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,POST,PUT,DELETE,OPTIONS'"
+  }
+
+  depends_on = [aws_api_gateway_integration.test_options]
+}
+
+# OPTIONS on {proxy+} — CORS preflight (MOCK, no auth)
+# Browsers send OPTIONS before cross-origin requests; must not require a JWT.
+resource "aws_api_gateway_method" "proxy_options" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.proxy.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "proxy_options" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.proxy.id
+  http_method = aws_api_gateway_method.proxy_options.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "proxy_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.proxy.id
+  http_method = aws_api_gateway_method.proxy_options.http_method
+  status_code = "200"
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Origin"  = true
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "proxy_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.proxy.id
+  http_method = aws_api_gateway_method.proxy_options.http_method
+  status_code = aws_api_gateway_method_response.proxy_options_200.status_code
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Origin"  = "'https://d2681j5g1s1ydv.cloudfront.net'"
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,Authorization'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,POST,PUT,DELETE,OPTIONS'"
+  }
+
+  depends_on = [aws_api_gateway_integration.proxy_options]
 }
 
 # Deployment and stage
@@ -106,13 +226,29 @@ resource "aws_api_gateway_deployment" "main" {
   rest_api_id = aws_api_gateway_rest_api.main.id
 
   triggers = {
+    # Include integration URIs in the hash so that URI changes trigger a redeploy.
+    # Using only resource IDs misses content changes (e.g. path corrections).
     redeployment = sha1(jsonencode([
       aws_api_gateway_resource.proxy.id,
       aws_api_gateway_method.proxy.id,
       aws_api_gateway_integration.proxy.id,
+      aws_api_gateway_integration.proxy.uri,
+      aws_api_gateway_method.proxy_options.id,
+      aws_api_gateway_integration.proxy_options.id,
+      aws_api_gateway_method_response.proxy_options_200.id,
+      aws_api_gateway_integration_response.proxy_options_200.id,
       aws_api_gateway_resource.health.id,
       aws_api_gateway_method.health.id,
       aws_api_gateway_integration.health.id,
+      aws_api_gateway_integration.health.uri,
+      aws_api_gateway_resource.test.id,
+      aws_api_gateway_method.test.id,
+      aws_api_gateway_integration.test.id,
+      aws_api_gateway_integration.test.uri,
+      aws_api_gateway_method.test_options.id,
+      aws_api_gateway_integration.test_options.id,
+      aws_api_gateway_method_response.test_options_200.id,
+      aws_api_gateway_integration_response.test_options_200.id,
     ]))
   }
 
@@ -138,7 +274,7 @@ resource "aws_api_gateway_stage" "main" {
 # ------------------------------------------------------------------------------
 resource "aws_wafv2_web_acl" "api" {
   name        = "${var.project_name}-${var.environment}-waf-api"
-  description = "WAF ACL for ${var.project_name} API Gateway (${var.environment})"
+  description = "WAF ACL for ${var.project_name} API Gateway - ${var.environment}"
   scope       = "REGIONAL"
 
   default_action {

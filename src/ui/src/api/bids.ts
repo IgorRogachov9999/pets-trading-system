@@ -7,14 +7,14 @@ export interface PlaceBidRequest {
 }
 
 export async function placeBid(request: PlaceBidRequest): Promise<Bid> {
-  return apiFetch<Bid>('/api/bids', {
+  return apiFetch<Bid>('/api/v1/bids', {
     method: 'POST',
     body: JSON.stringify(request),
   })
 }
 
 export async function withdrawBid(bidId: string): Promise<void> {
-  return apiFetch<void>(`/api/bids/${bidId}/withdraw`, {
+  return apiFetch<void>(`/api/v1/bids/${bidId}/withdraw`, {
     method: 'POST',
   })
 }
