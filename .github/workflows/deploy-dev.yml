@@ -1,8 +1,7 @@
 name: Deploy to Dev
 
 # Runs Terraform apply for dev, then deploys ECS, Lambda, and frontend.
-# Auto-triggered by workflow_run when any build workflow completes successfully on main.
-# Also supports manual runs via workflow_dispatch.
+# Manual trigger only — run via workflow_dispatch from the GitHub Actions UI.
 #
 # Required GitHub Secrets:
 #   AWS_ROLE_ARN           - GitHub OIDC role ARN
@@ -11,14 +10,11 @@ name: Deploy to Dev
 #   TF_STATE_BUCKET        - S3 bucket for Terraform state
 #   TF_STATE_LOCK_TABLE    - DynamoDB table for Terraform state lock
 
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
 on:
-  workflow_run:
-    workflows:
-      - "Build & Push Trading API"
-      - "Build & Push Lifecycle Lambda"
-      - "Build & Upload Frontend"
-    branches: [main]
-    types: [completed]
   workflow_dispatch:
     inputs:
       image_tag:
@@ -40,8 +36,6 @@ jobs:
   terraform-ecr:
     name: Terraform Apply (ECR — shared)
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -87,8 +81,6 @@ jobs:
   terraform-builds:
     name: Terraform Apply (Builds Bucket — shared)
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -134,8 +126,6 @@ jobs:
     name: Terraform Apply (dev)
     runs-on: ubuntu-latest
     needs: [terraform-ecr, terraform-builds]
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -181,8 +171,6 @@ jobs:
     name: Deploy Services
     runs-on: ubuntu-latest
     needs: [terraform-ecr, terraform-builds, terraform-plan-apply]
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
-
     steps:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
