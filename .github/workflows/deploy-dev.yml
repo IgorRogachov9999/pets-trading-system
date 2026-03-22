@@ -11,6 +11,10 @@ name: Deploy to Dev
 #   TF_STATE_BUCKET        - S3 bucket for Terraform state
 #   TF_STATE_LOCK_TABLE    - DynamoDB table for Terraform state lock
 
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
 on:
   workflow_run:
     workflows:
