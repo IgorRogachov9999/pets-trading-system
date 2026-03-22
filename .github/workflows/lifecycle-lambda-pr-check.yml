@@ -33,9 +33,9 @@ jobs:
       - name: Restore (solution — resolves all shared project references)
         run: dotnet restore src/trading-api/PetsTrading.sln
 
-      - name: Build Lifecycle Lambda
+      - name: Build Lifecycle Lambda (test project — transitively builds lambda and shared libs)
         run: |
-          dotnet build src/trading-api/src/lifecycle/PetsTrading.LifecycleLambda/PetsTrading.LifecycleLambda.csproj \
+          dotnet build src/trading-api/tests/PetsTrading.LifecycleLambda.Tests/PetsTrading.LifecycleLambda.Tests.csproj \
             --no-restore \
             --configuration Release
 

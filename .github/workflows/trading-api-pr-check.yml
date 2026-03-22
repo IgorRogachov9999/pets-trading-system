@@ -33,9 +33,9 @@ jobs:
       - name: Restore (solution — resolves all shared project references)
         run: dotnet restore src/trading-api/PetsTrading.sln
 
-      - name: Build Trading API
+      - name: Build Trading API (test project — transitively builds main project and shared libs)
         run: |
-          dotnet build src/trading-api/src/PetsTrading.TradingApi/PetsTrading.TradingApi.csproj \
+          dotnet build src/trading-api/tests/PetsTrading.TradingApi.Tests/PetsTrading.TradingApi.Tests.csproj \
             --no-restore \
             --configuration Release
 
