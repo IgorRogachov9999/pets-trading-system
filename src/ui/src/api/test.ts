@@ -5,5 +5,5 @@ export interface TestResponse {
 }
 
 export async function fetchTest(): Promise<TestResponse> {
-  return apiFetch<TestResponse>('/api/v1/test')
+  return apiFetch<TestResponse>('/test')
 }
