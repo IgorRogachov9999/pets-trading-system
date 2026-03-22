@@ -2,6 +2,37 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Build & Test Commands
+
+### Backend (.NET 10) — single solution covers Trading API + Lifecycle Lambda
+
+```bash
+# From repo root
+dotnet restore src/trading-api/PetsTrading.sln
+
+# Build everything (via test projects — transitively builds main projects)
+dotnet build src/trading-api/tests/PetsTrading.TradingApi.Tests/PetsTrading.TradingApi.Tests.csproj --no-restore --configuration Release
+dotnet build src/trading-api/tests/PetsTrading.LifecycleLambda.Tests/PetsTrading.LifecycleLambda.Tests.csproj --no-restore --configuration Release
+
+# Run all tests (use --no-build if already built)
+dotnet test src/trading-api/tests/PetsTrading.TradingApi.Tests/PetsTrading.TradingApi.Tests.csproj --no-build --configuration Release
+dotnet test src/trading-api/tests/PetsTrading.LifecycleLambda.Tests/PetsTrading.LifecycleLambda.Tests.csproj --no-build --configuration Release
+
+# Run a single test (by name filter)
+dotnet test src/trading-api/tests/PetsTrading.TradingApi.Tests/PetsTrading.TradingApi.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~MyTestName"
+```
+
+### Frontend (React/Vite)
+
+```bash
+cd src/ui
+npm install
+npm run dev        # local dev server
+npm run build      # production build (tsc + vite)
+npm test           # vitest run (single pass)
+npm run test:watch # vitest watch mode
+```
+
 ## Project Context
 
 Hackathon project: a real-time virtual pet marketplace where authenticated Traders buy, sell, and bid on pets. Scoring rewards coherent system > feature volume; clear tradeoffs > polish; working deployment > completeness.
