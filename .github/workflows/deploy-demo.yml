@@ -1,4 +1,4 @@
-name: Deploy to Demo (Disabled — enable when ready for demo deployments)
+name: Deploy to Demo
 
 # Runs Terraform apply for demo, then deploys ECS, Lambda, and frontend.
 # Requires manual approval via the GitHub 'demo' environment protection rule.

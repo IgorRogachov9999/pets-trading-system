@@ -3,9 +3,6 @@ name: Build & Upload Frontend
 # Builds the React SPA and uploads the artefact to the builds S3 bucket on
 # every merge to main that touches frontend source.
 #
-# NOTE: Enable this workflow (and disable initial-setup.yml) once infrastructure
-# is stable and you want per-component builds decoupled from Terraform.
-#
 # Required GitHub Secrets:
 #   AWS_ROLE_ARN           - GitHub OIDC role ARN
 #   AWS_REGION             - e.g., us-east-1
