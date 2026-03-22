@@ -1,0 +1,55 @@
+name: Lifecycle Lambda PR Check
+
+# Builds and tests the Lifecycle Lambda on PRs that touch
+# Lambda-specific source or any shared domain/application/infrastructure code.
+#
+# Required GitHub Secrets: none — this workflow makes no AWS calls.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/trading-api/src/lifecycle/**'
+      - 'src/trading-api/src/PetsTrading.Application/**'
+      - 'src/trading-api/src/PetsTrading.Domain/**'
+      - 'src/trading-api/src/PetsTrading.Infrastructure/**'
+      - 'src/trading-api/tests/PetsTrading.LifecycleLambda.Tests/**'
+      - '.github/workflows/lifecycle-lambda-pr-check.yml'
+
+jobs:
+  build-and-test:
+    name: Build and Test (Lifecycle Lambda)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore (solution — resolves all shared project references)
+        run: dotnet restore src/trading-api/PetsTrading.sln
+
+      - name: Build Lifecycle Lambda
+        run: |
+          dotnet build src/trading-api/src/lifecycle/PetsTrading.LifecycleLambda/PetsTrading.LifecycleLambda.csproj \
+            --no-restore \
+            --configuration Release
+
+      - name: Test Lifecycle Lambda
+        run: |
+          dotnet test src/trading-api/tests/PetsTrading.LifecycleLambda.Tests/PetsTrading.LifecycleLambda.Tests.csproj \
+            --no-build \
+            --configuration Release \
+            --logger trx \
+            --results-directory TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-lifecycle-lambda
+          path: TestResults/

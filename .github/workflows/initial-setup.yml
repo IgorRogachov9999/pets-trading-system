@@ -43,6 +43,28 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
+  # ── Step 0: Detect which parts of the repo changed ────────────────────────
+  # build-backend and build-frontend are skipped when their source paths are
+  # unchanged, avoiding unnecessary image pushes and S3 uploads.
+  detect-changes:
+    name: Detect Changed Paths
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Filter changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'src/trading-api/**'
+            frontend:
+              - 'src/ui/**'
+
   # ── Step 1a: Terraform apply (ECR — shared, env-independent) ──────────────
   terraform-ecr:
     name: Terraform Apply (ECR — shared)
@@ -229,7 +251,8 @@ jobs:
   build-backend:
     name: Build & Push Backend Images
     runs-on: ubuntu-latest
-    needs: [terraform-ecr, terraform-apply]
+    needs: [terraform-ecr, terraform-apply, detect-changes]
+    if: needs.detect-changes.outputs.backend == 'true'
 
     steps:
       - name: Checkout
@@ -277,7 +300,8 @@ jobs:
   build-frontend:
     name: Build & Upload Frontend
     runs-on: ubuntu-latest
-    needs: [terraform-builds, terraform-apply]
+    needs: [terraform-builds, terraform-apply, detect-changes]
+    if: needs.detect-changes.outputs.frontend == 'true'
 
     steps:
       - name: Checkout
@@ -332,6 +356,9 @@ jobs:
     name: Deploy All Services
     runs-on: ubuntu-latest
     needs: [terraform-ecr, terraform-builds, terraform-apply, build-backend, build-frontend]
+    # Run only when at least one build job succeeded (skipped builds mean no new artefacts).
+    # always() is required because sibling needs may be in 'skipped' state.
+    if: always() && !cancelled() && needs.terraform-apply.result == 'success' && (needs.build-backend.result == 'success' || needs.build-frontend.result == 'success')
 
     steps:
       - name: Configure AWS credentials (OIDC)
@@ -342,6 +369,7 @@ jobs:
           role-session-name: GHActions-Deploy-${{ github.run_id }}
 
       - name: Deploy Trading API (ECS force-new-deployment)
+        if: needs.build-backend.result == 'success'
         run: |
           ECS_CLUSTER="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-cluster"
           ECS_SERVICE="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-trading-api"
@@ -352,6 +380,7 @@ jobs:
             --region ${{ secrets.AWS_REGION }}
 
       - name: Wait for ECS service to stabilise
+        if: needs.build-backend.result == 'success'
         run: |
           ECS_CLUSTER="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-cluster"
           ECS_SERVICE="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-trading-api"
@@ -361,6 +390,7 @@ jobs:
             --region ${{ secrets.AWS_REGION }}
 
       - name: Deploy Lifecycle Lambda (update image)
+        if: needs.build-backend.result == 'success'
         run: |
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
           REGISTRY="${ACCOUNT_ID}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com"
@@ -375,6 +405,7 @@ jobs:
             --region ${{ secrets.AWS_REGION }}
 
       - name: Deploy Frontend to S3
+        if: needs.build-frontend.result == 'success'
         run: |
           BUILDS_BUCKET="${{ env.PROJECT_NAME }}-builds"
           FRONTEND_BUCKET="${{ env.PROJECT_NAME }}-frontend-${{ env.ENVIRONMENT }}"
@@ -392,6 +423,7 @@ jobs:
             --cache-control "no-cache, no-store, must-revalidate"
 
       - name: Invalidate CloudFront
+        if: needs.build-frontend.result == 'success'
         run: |
           aws cloudfront create-invalidation \
             --distribution-id ${{ needs.terraform-apply.outputs.cloudfront_id }} \

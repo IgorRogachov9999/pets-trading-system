@@ -1,0 +1,172 @@
+name: Terraform PR Check
+
+# Validates all three Terraform workspaces (ecr, builds, dev) on PRs that touch
+# terraform/ files. Runs fmt-check, validate, and plan (read-only — no apply).
+#
+# Required GitHub Secrets:
+#   AWS_ROLE_ARN           - GitHub OIDC role ARN
+#   AWS_REGION             - e.g., us-east-1
+#   PROJECT_NAME           - pets-trading-system
+#   TF_STATE_BUCKET        - S3 bucket for Terraform state
+#   TF_STATE_LOCK_TABLE    - DynamoDB table for Terraform state lock
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/terraform-pr-check.yml'
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  PROJECT_NAME: ${{ secrets.PROJECT_NAME }}
+  ENVIRONMENT: dev
+
+jobs:
+  # ── ECR workspace ──────────────────────────────────────────────────────────
+  plan-ecr:
+    name: Plan (ECR — shared)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-session-name: GHActions-PRCheck-ECR-${{ github.run_id }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '~1.6'
+          terraform_wrapper: false
+
+      - name: Terraform Format Check
+        working-directory: terraform/ecr
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init
+        working-directory: terraform/ecr
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=${{ env.PROJECT_NAME }}/ecr/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ secrets.TF_STATE_LOCK_TABLE }}" \
+            -backend-config="encrypt=true"
+
+      - name: Terraform Validate
+        working-directory: terraform/ecr
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: terraform/ecr
+        run: |
+          terraform plan \
+            -var="project_name=${{ env.PROJECT_NAME }}" \
+            -var="aws_region=${{ env.AWS_REGION }}" \
+            -no-color
+
+  # ── Builds bucket workspace ────────────────────────────────────────────────
+  plan-builds:
+    name: Plan (Builds Bucket — shared)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-session-name: GHActions-PRCheck-Builds-${{ github.run_id }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '~1.6'
+          terraform_wrapper: false
+
+      - name: Terraform Format Check
+        working-directory: terraform/builds
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init
+        working-directory: terraform/builds
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=${{ env.PROJECT_NAME }}/builds/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ secrets.TF_STATE_LOCK_TABLE }}" \
+            -backend-config="encrypt=true"
+
+      - name: Terraform Validate
+        working-directory: terraform/builds
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: terraform/builds
+        run: |
+          terraform plan \
+            -var="project_name=${{ env.PROJECT_NAME }}" \
+            -var="aws_region=${{ env.AWS_REGION }}" \
+            -no-color
+
+  # ── Dev environment workspace ──────────────────────────────────────────────
+  plan-dev:
+    name: Plan (dev environment)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-session-name: GHActions-PRCheck-Dev-${{ github.run_id }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '~1.6'
+          terraform_wrapper: false
+
+      - name: Terraform Format Check
+        working-directory: terraform
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=${{ env.PROJECT_NAME }}/${{ env.ENVIRONMENT }}/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ secrets.TF_STATE_LOCK_TABLE }}" \
+            -backend-config="encrypt=true"
+
+      - name: Terraform Validate
+        working-directory: terraform
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: terraform
+        run: |
+          terraform plan \
+            -var-file=environments/dev.tfvars \
+            -var="project_name=${{ env.PROJECT_NAME }}" \
+            -no-color
